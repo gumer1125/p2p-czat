@@ -3,56 +3,59 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P Czat PRO v2</title>
+    <title>P2P Czat Final</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
-        :root { /* ... bez zmian ... */ }
+        :root {
+            --background-primary: #36393f; --background-secondary: #2f3136; --background-tertiary: #202225;
+            --text-normal: #dcddde; --text-muted: #72767d; --header-primary: #ffffff;
+            --green: #43b581; --yellow: #faa61a; --red: #f04747; --blue: #5865F2;
+        }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        body { font-family: 'Whitney', 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; background-color: #36393f; color: #dcddde; display: flex; height: 100vh; overflow: hidden; }
+        body { font-family: 'Whitney', 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; background-color: var(--background-primary); color: var(--text-normal); display: flex; height: 100vh; overflow: hidden; }
         .app-container { display: flex; width: 100%; }
-        .sidebar { width: 280px; background-color: #2f3136; display: flex; flex-direction: column; padding: 10px; box-shadow: 2px 0 5px rgba(0,0,0,0.2); z-index: 2;}
-        .sidebar h2 { color: #ffffff; font-size: 16px; padding: 0 10px; margin-bottom: 20px; }
-        .panel { border-radius: 8px; padding: 15px; background-color: #202225; margin-bottom: 15px; transition: border-color 0.3s ease; border: 1px solid #202225; }
-        .panel h3 { margin-top: 0; font-size: 14px; color: #ffffff; }
-        #connection-status { padding: 5px 8px; border-radius: 5px; font-weight: bold; text-align: center; margin-bottom: 10px; background-color: #f04747; transition: background-color 0.3s ease; }
-        #connection-status.connecting { background-color: #faa61a; }
-        #connection-status.connected { background-color: #43b581; }
-        .panel input[type="text"] { width: calc(100% - 22px); padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #36393f; background-color: #2f3136; color: #dcddde; transition: border-color 0.3s ease, box-shadow 0.3s ease; }
-        .panel input[type="text"]:focus { outline: none; border-color: #5865F2; box-shadow: 0 0 5px #5865F2; }
+        .sidebar { width: 280px; background-color: var(--background-secondary); display: flex; flex-direction: column; padding: 10px; box-shadow: 2px 0 5px rgba(0,0,0,0.2); z-index: 2; }
+        .sidebar h2 { color: var(--header-primary); font-size: 16px; padding: 0 10px; margin-bottom: 20px; }
+        .panel { border-radius: 8px; padding: 15px; background-color: var(--background-tertiary); margin-bottom: 15px; transition: border-color 0.3s ease; border: 1px solid var(--background-tertiary); }
+        .panel h3 { margin-top: 0; font-size: 14px; color: var(--header-primary); }
+        #connection-status { padding: 5px 8px; border-radius: 5px; font-weight: bold; text-align: center; margin-bottom: 10px; background-color: var(--red); transition: background-color 0.3s ease; }
+        #connection-status.connecting { background-color: var(--yellow); }
+        #connection-status.connected { background-color: var(--green); }
+        .panel input[type="text"] { width: calc(100% - 22px); padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid var(--background-primary); background-color: var(--background-secondary); color: var(--text-normal); transition: border-color 0.3s ease, box-shadow 0.3s ease; }
+        .panel input[type="text"]:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 5px var(--blue); }
         .panel button { width: 100%; padding: 10px; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; margin-bottom: 10px; transition: background-color 0.2s ease, transform 0.1s ease; }
-        .panel button:hover { opacity: 0.9; }
-        .panel button:active { transform: scale(0.98); }
-        .panel button:disabled { background-color: #72767d; cursor: not-allowed; }
-        #save-settings-btn, #join-room-btn { background-color: #5865F2; }
-        #create-room-btn { background-color: #43b581; }
+        .panel button:hover { opacity: 0.9; } .panel button:active { transform: scale(0.98); }
+        .panel button:disabled { background-color: var(--text-muted); cursor: not-allowed; opacity: 0.5; }
+        #save-settings-btn, #join-room-btn { background-color: var(--blue); }
+        #create-room-btn { background-color: var(--green); }
         .chat-list-item { padding: 10px; border-radius: 5px; cursor: pointer; margin-bottom: 5px; transition: background-color 0.2s ease; font-weight: 500;}
         .chat-list-item.active, .chat-list-item:hover { background-color: #40444b; }
-        .main-content { flex-grow: 1; display: flex; flex-direction: column; background-color: #36393f; }
-        .chat-header { padding: 15px 20px; font-size: 16px; font-weight: 600; color: white; background-color: #2f3136; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; background-color: var(--background-primary); }
+        .chat-header { padding: 15px 20px; font-size: 16px; font-weight: 600; color: white; background-color: var(--background-secondary); box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
         .chat-messages { flex-grow: 1; padding: 20px; overflow-y: auto; scroll-behavior: smooth; }
         .message { margin-bottom: 15px; display: flex; align-items: flex-start; animation: fadeIn 0.3s ease-out; }
         .avatar { width: 40px; height: 40px; border-radius: 50%; margin-right: 15px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; color: white; }
         .message-content { display: flex; flex-direction: column; max-width: 80%; }
         .message-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
         .message-nick { font-size: 14px; font-weight: bold; }
-        .message-timestamp { font-size: 11px; color: #72767d; }
+        .message-timestamp { font-size: 11px; color: var(--text-muted); }
         .message-body a { color: #00a8fc; text-decoration: none; } .message-body a:hover { text-decoration: underline; }
         .message-body img, .message-body video { max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 5px; cursor: pointer; }
-        .progress-bar { width: 200px; height: 10px; background-color: #2f3136; border-radius: 5px; overflow: hidden; margin-top: 5px; }
-        .progress-bar-fill { width: 0%; height: 100%; background-color: #5865F2; transition: width 0.2s ease; }
-        .chat-input-area { padding: 20px; background-color: #40444b; border-top: 1px solid #202225; display: flex; align-items: center; box-shadow: 0 -2px 5px rgba(0,0,0,0.1); }
-        #chat-input { flex-grow: 1; padding: 12px; background-color: #2f3136; border: none; border-radius: 8px; color: #dcddde; resize: none; margin-right: 10px; }
+        .progress-bar { width: 200px; height: 10px; background-color: var(--background-secondary); border-radius: 5px; overflow: hidden; margin-top: 5px; }
+        .progress-bar-fill { width: 0%; height: 100%; background-color: var(--blue); transition: width 0.2s ease; }
+        .chat-input-area { padding: 20px; background-color: #40444b; border-top: 1px solid var(--background-tertiary); display: flex; align-items: center; box-shadow: 0 -2px 5px rgba(0,0,0,0.1); }
+        #chat-input { flex-grow: 1; padding: 12px; background-color: var(--background-secondary); border: none; border-radius: 8px; color: var(--text-normal); resize: none; margin-right: 10px; }
         #file-btn { background: transparent; border: none; color: #b9bbbe; font-size: 24px; cursor: pointer; padding: 8px; border-radius: 50%; transition: background-color 0.2s ease; }
-        #file-btn:hover { background-color: #474b52; } #file-btn:disabled { color: #72767d; cursor: not-allowed; }
+        #file-btn:hover { background-color: #474b52; } #file-btn:disabled { color: var(--text-muted); cursor: not-allowed; }
     </style>
 </head>
 <body>
     <div class="app-container">
         <div class="sidebar">
-            <h2>P2P Czat PRO</h2>
+            <h2>P2P Czat Final</h2>
             <div class="panel" id="user-settings"><h3>Ustawienia</h3><input type="text" id="nickname-input" placeholder="Twój nick..."><button id="save-settings-btn">Zapisz</button></div>
             <div class="panel" id="chats-panel"><h3>Rozmowy</h3><div id="chat-list"></div></div>
-            <div class="panel" id="connection-panel"><h3>Nowa rozmowa</h3><input type="text" id="room-code-input" placeholder="Wpisz kod pokoju..."><button id="create-room-btn" disabled>Stwórz</button><button id="join-room-btn" disabled>Dołącz</button></div>
+            <div class="panel" id="connection-panel"><h3>Nowa rozmowa</h3><div id="connection-status" class="disconnected">Rozłączono</div><input type="text" id="room-code-input" placeholder="Wpisz kod pokoju..."><button id="create-room-btn" disabled>Stwórz</button><button id="join-room-btn" disabled>Dołącz</button></div>
         </div>
         <div class="main-content">
              <div class="chat-header" id="chat-header">Wybierz rozmowę lub stwórz nową</div>
@@ -72,57 +75,16 @@
     let myId = 'client-' + Math.random().toString(36).substr(2, 9);
     let user = { nick: 'Anonim', color: '#7289da' };
     let activeRoomId = null;
-    const BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt', TOPIC_PREFIX = 'p2p-chat-app-final-demo-123/', FILE_CHUNK_SIZE = 16 * 1024;
+    let isInitiator = false;
+    const BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt', TOPIC_PREFIX = 'p2p-chat-app-stable-v7/', FILE_CHUNK_SIZE = 16384; // 16KB
     const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
     
     // --- Database (IndexedDB) Logic ---
-    function initDB() {
-        const request = indexedDB.open('P2PChatDB', 1);
-        request.onerror = (e) => console.error("Błąd bazy danych:", e.target.errorCode);
-        request.onsuccess = (e) => { db = e.target.result; loadChatList(); };
-        request.onupgradeneeded = (e) => {
-            let db = e.target.result;
-            db.createObjectStore('rooms', { keyPath: 'id' });
-            let messagesStore = db.createObjectStore('messages', { keyPath: 'id', autoIncrement: true });
-            messagesStore.createIndex('roomId', 'roomId', { unique: false });
-        };
-    }
-
-    function saveRoom(room) { const tx = db.transaction('rooms', 'readwrite'); tx.objectStore('rooms').put(room); loadChatList(); }
+    function initDB() { const request = indexedDB.open('P2PChatDB_v2', 1); request.onerror = (e) => console.error("DB Error:", e.target.errorCode); request.onsuccess = (e) => { db = e.target.result; loadChatList(); }; request.onupgradeneeded = (e) => { let db = e.target.result; if (!db.objectStoreNames.contains('rooms')) db.createObjectStore('rooms', { keyPath: 'id' }); if (!db.objectStoreNames.contains('messages')) { let messagesStore = db.createObjectStore('messages', { keyPath: 'id', autoIncrement: true }); messagesStore.createIndex('roomId', 'roomId', { unique: false }); }}; }
+    function saveRoom(room) { const tx = db.transaction('rooms', 'readwrite'); const store = tx.objectStore('rooms'); store.get(room.id).onsuccess = (e) => { const existing = e.target.result; if (!existing || (room.peer && !existing.peer)) { store.put({ ...existing, ...room }); tx.oncomplete = () => loadChatList(); } }; }
     function saveMessage(msg) { const tx = db.transaction('messages', 'readwrite'); tx.objectStore('messages').add(msg); }
-    
-    function loadChatList() {
-        ui.chatList.innerHTML = '';
-        const tx = db.transaction('rooms', 'readonly');
-        tx.objectStore('rooms').openCursor().onsuccess = (e) => {
-            const cursor = e.target.result;
-            if (cursor) {
-                const room = cursor.value;
-                const item = document.createElement('div');
-                item.className = 'chat-list-item';
-                item.textContent = room.id;
-                item.onclick = () => selectChat(room.id);
-                ui.chatList.appendChild(item);
-                cursor.continue();
-            }
-        };
-    }
-
-    async function selectChat(roomId) {
-        activeRoomId = roomId;
-        ui.chatHeader.textContent = `Rozmowa: ${roomId}`;
-        ui.chatMessages.innerHTML = '';
-        document.querySelectorAll('.chat-list-item').forEach(el => el.classList.toggle('active', el.textContent === roomId));
-        const tx = db.transaction('messages', 'readonly');
-        const index = tx.objectStore('messages').index('roomId');
-        index.openCursor(IDBKeyRange.only(roomId)).onsuccess = (e) => {
-            const cursor = e.target.result;
-            if (cursor) { renderMessage(cursor.value); cursor.continue(); }
-        };
-        // Attempt to reconnect
-        resetConnection();
-        joinRoomBtn.click();
-    }
+    function loadChatList() { ui.chatList.innerHTML = ''; const tx = db.transaction('rooms', 'readonly'); tx.objectStore('rooms').openCursor().onsuccess = (e) => { const cursor = e.target.result; if (cursor) { const room = cursor.value; const item = document.createElement('div'); item.className = 'chat-list-item'; item.textContent = room.peer ? room.peer.nick : room.id; item.dataset.roomId = room.id; item.onclick = () => selectChat(room.id); ui.chatList.appendChild(item); cursor.continue(); } }; }
+    async function selectChat(roomId) { resetConnection(); activeRoomId = roomId; ui.chatHeader.textContent = `Rozmowa z: ${document.querySelector(`[data-room-id="${roomId}"]`).textContent}`; ui.chatMessages.innerHTML = ''; document.querySelectorAll('.chat-list-item').forEach(el => el.classList.toggle('active', el.dataset.roomId === roomId)); const tx = db.transaction('messages', 'readonly'); const index = tx.objectStore('messages').index('roomId'); index.openCursor(IDBKeyRange.only(roomId)).onsuccess = (e) => { const cursor = e.target.result; if (cursor) { renderMessage(cursor.value, true); cursor.continue(); } }; ui.joinRoomBtn.click(); }
 
     // --- User Settings ---
     document.addEventListener('DOMContentLoaded', () => { initDB(); loadUserSettings(); });
@@ -131,74 +93,57 @@
     function enableConnectionButtons() { ui.createRoomBtn.disabled = false; ui.joinRoomBtn.disabled = false; document.getElementById('user-settings').style.borderColor = 'var(--green)'; }
 
     // --- Message Rendering ---
-    function renderMessage(msgData) { /* ... skopiowane z poprzedniej wersji bez zmian, dla zwięzłości ... */ const { type, content, sender, timestamp } = msgData; const isYou = sender && sender.id === myId; const messageDiv = document.createElement('div'); messageDiv.classList.add('message'); const avatar = document.createElement('div'); avatar.className = 'avatar'; if(sender){ avatar.style.backgroundColor = sender.color; avatar.textContent = sender.nick.charAt(0).toUpperCase(); } const contentDiv = document.createElement('div'); contentDiv.className = 'message-content'; const headerDiv = document.createElement('div'); headerDiv.className = 'message-header'; const nickSpan = document.createElement('span'); nickSpan.className = 'message-nick'; nickSpan.style.color = isYou ? 'var(--green)' : 'var(--yellow)'; const timeSpan = document.createElement('span'); timeSpan.className = 'message-timestamp'; timeSpan.textContent = timestamp; const bodyDiv = document.createElement('div'); bodyDiv.className = 'message-body'; if(type==='system'){ bodyDiv.textContent = content; bodyDiv.style.fontStyle = 'italic'; bodyDiv.style.color = 'var(--text-muted)'; contentDiv.appendChild(bodyDiv); } else { nickSpan.textContent = isYou ? 'Ty' : sender.nick; headerDiv.appendChild(nickSpan); headerDiv.appendChild(timeSpan); contentDiv.appendChild(headerDiv); if(type === 'text'){ const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig; bodyDiv.innerHTML = content.replace(urlRegex, url => `<a href="${url}" target="_blank">${url}</a>`); } else if(type === 'file-progress'){ bodyDiv.textContent = `Plik: ${content.fileName}`; const p = document.createElement('div'); p.className = 'progress-bar'; p.id = msgData.fileProgressId; const f = document.createElement('div'); f.className = 'progress-bar-fill'; p.appendChild(f); bodyDiv.appendChild(p); } else if(type === 'file'){ const blob = new Blob([content.data], {type: content.fileType}); const url = URL.createObjectURL(blob); if(content.fileType.startsWith('image/')) { const i=document.createElement('img'); i.src=url; i.onclick=()=>window.open(url,'_blank'); bodyDiv.appendChild(i); } else if (content.fileType.startsWith('video/')) { const v=document.createElement('video'); v.src=url; v.controls=true; bodyDiv.appendChild(v); } else { const a=document.createElement('a'); a.href=url; a.download=content.fileName; a.textContent=`Pobierz: ${content.fileName}`; bodyDiv.appendChild(a); } } contentDiv.appendChild(bodyDiv); messageDiv.appendChild(avatar); } messageDiv.appendChild(contentDiv); ui.chatMessages.appendChild(messageDiv); ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight; }
+    function renderMessage(msgData, isFromHistory = false) { const { type, content, sender, timestamp } = msgData; const isYou = sender && sender.id === myId; const messageDiv = document.createElement('div'); messageDiv.classList.add('message'); if(!isFromHistory) messageDiv.style.animation = 'fadeIn 0.3s ease-out'; const avatar = document.createElement('div'); avatar.className = 'avatar'; if(sender){ avatar.style.backgroundColor = sender.color; avatar.textContent = sender.nick.charAt(0).toUpperCase(); } const contentDiv = document.createElement('div'); contentDiv.className = 'message-content'; const headerDiv = document.createElement('div'); headerDiv.className = 'message-header'; const nickSpan = document.createElement('span'); nickSpan.className = 'message-nick'; nickSpan.style.color = isYou ? 'var(--green)' : 'var(--yellow)'; const timeSpan = document.createElement('span'); timeSpan.className = 'message-timestamp'; timeSpan.textContent = timestamp; const bodyDiv = document.createElement('div'); bodyDiv.className = 'message-body'; if(type==='system'){ bodyDiv.textContent = content; bodyDiv.style.fontStyle = 'italic'; bodyDiv.style.color = 'var(--text-muted)'; contentDiv.appendChild(bodyDiv); } else { nickSpan.textContent = isYou ? 'Ty' : sender.nick; headerDiv.appendChild(nickSpan); headerDiv.appendChild(timeSpan); contentDiv.appendChild(headerDiv); if(type === 'text'){ const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig; bodyDiv.innerHTML = content.replace(urlRegex, url => `<a href="${url}" target="_blank">${url}</a>`); } else if(type === 'file-progress'){ bodyDiv.textContent = `Plik: ${content.fileName}`; const p = document.createElement('div'); p.className = 'progress-bar'; p.id = msgData.fileProgressId; const f = document.createElement('div'); f.className = 'progress-bar-fill'; p.appendChild(f); bodyDiv.appendChild(p); } else if(type === 'file'){ const fileData = isFromHistory ? content.data : atob(content.data); const len = fileData.length; const bytes = new Uint8Array(len); for (let i=0; i<len; i++) { bytes[i] = fileData.charCodeAt(i); } const blob = new Blob([bytes.buffer], {type: content.fileType}); const url = URL.createObjectURL(blob); if(content.fileType.startsWith('image/')) { const i=document.createElement('img'); i.src=url; i.onclick=()=>window.open(url,'_blank'); bodyDiv.appendChild(i); } else if (content.fileType.startsWith('video/')) { const v=document.createElement('video'); v.src=url; v.controls=true; bodyDiv.appendChild(v); } else { const a=document.createElement('a'); a.href=url; a.download=content.fileName; a.textContent=`Pobierz: ${content.fileName}`; bodyDiv.appendChild(a); } } contentDiv.appendChild(bodyDiv); messageDiv.appendChild(avatar); } messageDiv.appendChild(contentDiv); ui.chatMessages.appendChild(messageDiv); if(!isFromHistory) ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight; }
 
     // --- Core Connection Logic (WebRTC + MQTT) ---
-    function resetConnection() { if (dataChannel) dataChannel.close(); if (peerConnection) peerConnection.close(); if (mqttClient) mqttClient.end(); peerConnection = null; dataChannel = null; updateStatus('disconnected', 'Rozłączono'); }
+    function resetConnection() { if (dataChannel) dataChannel.close(); if (peerConnection) peerConnection.close(); if (mqttClient) mqttClient.end(); peerConnection = null; dataChannel = null; isInitiator = false; updateStatus('disconnected', 'Rozłączono'); }
     function updateStatus(status, text) { ui.connectionStatus.className = status; ui.connectionStatus.textContent = text; const connected = status === 'connected'; ui.chatInput.disabled = !connected; ui.fileBtn.disabled = !connected; }
     function getTopics(roomId) { return { offerTopic: TOPIC_PREFIX + roomId + '/offer', answerTopic: TOPIC_PREFIX + roomId + '/answer' }; }
-    function initializePeerConnection(isInitiator) { resetConnection(); peerConnection = new RTCPeerConnection(configuration); if (isInitiator) { dataChannel = peerConnection.createDataChannel('chat', { ordered: true }); setupDataChannelEvents(); } else { peerConnection.ondatachannel = event => { dataChannel = event.channel; setupDataChannelEvents(); }; } }
     
-    function connectSignaling(isInitiator, roomId) {
-        if (!roomId) { alert('Wpisz kod pokoju!'); return false; }
+    async function startConnection(startAsInitiator, roomId) {
+        if (!roomId) { alert('Wpisz kod pokoju!'); return; }
+        resetConnection();
+        isInitiator = startAsInitiator;
         activeRoomId = roomId;
         saveRoom({ id: roomId });
-        initializePeerConnection(isInitiator);
+        ui.chatHeader.textContent = `Łączenie z: ${roomId}...`;
+        peerConnection = new RTCPeerConnection(configuration);
+        if (isInitiator) { dataChannel = peerConnection.createDataChannel('chat'); setupDataChannelEvents(); } 
+        else { peerConnection.ondatachannel = event => { dataChannel = event.channel; setupDataChannelEvents(); }; }
+
         const { offerTopic, answerTopic } = getTopics(roomId);
-        updateStatus('connecting', 'Łączenie...');
+        updateStatus('connecting', 'Sygnalizacja...');
         mqttClient = mqtt.connect(BROKER_URL, { clientId: myId });
-        mqttClient.on('connect', () => { isInitiator ? mqttClient.subscribe(answerTopic) : mqttClient.subscribe(offerTopic); });
+        mqttClient.on('connect', () => { isInitiator ? mqttClient.subscribe(answerTopic) : mqttClient.subscribe(offerTopic); if (isInitiator) createOffer(); });
         mqttClient.on('message', (topic, message) => { const data = JSON.parse(message.toString()); if (data.senderId === myId) return; if (topic === offerTopic) handleReceivedOffer(data.payload); else if (topic === answerTopic) handleReceivedAnswer(data.payload); });
-        return true;
     }
 
-    ui.createRoomBtn.addEventListener('click', async () => { if (!connectSignaling(true, ui.roomCodeInput.value)) return; try { const offer = await peerConnection.createOffer(); await peerConnection.setLocalDescription(offer); peerConnection.onicegatheringstatechange = () => { if (peerConnection.iceGatheringState === 'complete') { mqttClient.publish(getTopics(activeRoomId).offerTopic, JSON.stringify({ senderId: myId, payload: peerConnection.localDescription }), { retain: true }); } }; } catch (e) { console.error("Błąd tworzenia oferty:", e); } });
-    ui.joinRoomBtn.addEventListener('click', () => { connectSignaling(false, activeRoomId || ui.roomCodeInput.value); });
+    ui.createRoomBtn.addEventListener('click', () => startConnection(true, ui.roomCodeInput.value));
+    ui.joinRoomBtn.addEventListener('click', () => startConnection(false, activeRoomId || ui.roomCodeInput.value));
     
-    async function handleReceivedOffer(offer) { try { await peerConnection.setRemoteDescription(new RTCSessionDescription(offer)); const answer = await peerConnection.createAnswer(); await peerConnection.setLocalDescription(answer); peerConnection.onicegatheringstatechange = () => { if (peerConnection.iceGatheringState === 'complete') { mqttClient.publish(getTopics(activeRoomId).answerTopic, JSON.stringify({ senderId: myId, payload: peerConnection.localDescription }), { retain: true }); } }; } catch (e) { console.error("Błąd obsługi oferty:", e); } }
-    async function handleReceivedAnswer(answer) { if (!peerConnection.currentRemoteDescription) { try { await peerConnection.setRemoteDescription(new RTCSessionDescription(answer)); } catch (e) { console.error("Błąd obsługi odpowiedzi:", e); } } }
+    async function createOffer() { const offer = await peerConnection.createOffer(); await peerConnection.setLocalDescription(offer); peerConnection.onicegatheringstatechange = () => { if (peerConnection.iceGatheringState === 'complete') { mqttClient.publish(getTopics(activeRoomId).offerTopic, JSON.stringify({ senderId: myId, payload: peerConnection.localDescription }), { retain: true }); } }; }
+    async function handleReceivedOffer(offer) { await peerConnection.setRemoteDescription(new RTCSessionDescription(offer)); const answer = await peerConnection.createAnswer(); await peerConnection.setLocalDescription(answer); peerConnection.onicegatheringstatechange = () => { if (peerConnection.iceGatheringState === 'complete') { mqttClient.publish(getTopics(activeRoomId).answerTopic, JSON.stringify({ senderId: myId, payload: peerConnection.localDescription }), { retain: true }); } }; }
+    async function handleReceivedAnswer(answer) { if (!peerConnection.currentRemoteDescription) { await peerConnection.setRemoteDescription(new RTCSessionDescription(answer)); } }
 
     // --- Data Channel & File Transfer Logic ---
     function setupDataChannelEvents() {
-        dataChannel.onopen = () => { updateStatus('connected', 'Połączono'); };
+        dataChannel.onopen = () => { updateStatus('connected', 'Połączono'); if (isInitiator) sendMessage('user-profile', user); };
         dataChannel.onclose = () => resetConnection();
         let receivedFileChunks = {}, receivedFileData = {};
         dataChannel.onmessage = event => {
             const message = JSON.parse(event.data);
-            if (message.type === 'file-chunk') {
-                if (!receivedFileChunks[message.fileId]) receivedFileChunks[message.fileId] = [];
-                receivedFileChunks[message.fileId][message.index] = message.chunk;
-                const progress = (receivedFileChunks[message.fileId].filter(Boolean).length / receivedFileData[message.fileId].totalChunks) * 100;
-                const fill = document.querySelector(`#${message.fileId} .progress-bar-fill`);
-                if(fill) fill.style.width = `${progress}%`;
-                if (receivedFileChunks[message.fileId].filter(Boolean).length === receivedFileData[message.fileId].totalChunks) {
-                    const base64Data = receivedFileChunks[message.fileId].join('');
-                    const binaryData = atob(base64Data);
-                    const len = binaryData.length;
-                    const bytes = new Uint8Array(len);
-                    for (let i=0; i<len; i++) { bytes[i] = binaryData.charCodeAt(i); }
-                    const fileBlob = new Blob([bytes.buffer], {type: receivedFileData[message.fileId].fileType});
-                    document.getElementById(message.fileId)?.parentElement.parentElement.remove();
-                    const finalMsg = { type: 'file', content: { data: fileBlob, fileType: receivedFileData[message.fileId].fileType, fileName: receivedFileData[message.fileId].fileName }, sender: receivedFileData[message.fileId].sender, timestamp: message.timestamp };
-                    renderMessage(finalMsg);
-                    saveMessage({ ...finalMsg, roomId: activeRoomId });
-                    delete receivedFileChunks[message.fileId]; delete receivedFileData[message.fileId];
-                }
-            } else if (message.type === 'file-meta') {
-                receivedFileData[message.fileProgressId] = { ...message.content, sender: message.sender };
-                renderMessage(message);
-            } else {
-                renderMessage(message);
-                saveMessage({ ...message, roomId: activeRoomId });
-            }
+            if (message.type === 'user-profile') { saveRoom({ id: activeRoomId, peer: message.content }); if (!isInitiator) sendMessage('user-profile', user); return; }
+            if (message.type === 'file-chunk') { if (!receivedFileChunks[message.fileId]) receivedFileChunks[message.fileId] = []; receivedFileChunks[message.fileId][message.index] = message.chunk; const progress = (receivedFileChunks[message.fileId].filter(Boolean).length / receivedFileData[message.fileId].totalChunks) * 100; const fill = document.querySelector(`#${message.fileId} .progress-bar-fill`); if(fill) fill.style.width = `${progress}%`; if (receivedFileChunks[message.fileId].filter(Boolean).length === receivedFileData[message.fileId].totalChunks) { const base64Data = receivedFileChunks[message.fileId].join(''); const finalMsg = { type: 'file', content: { data: base64Data, fileType: receivedFileData[message.fileId].fileType, fileName: receivedFileData[message.fileId].fileName }, sender: receivedFileData[message.fileId].sender, timestamp: message.timestamp }; renderMessage(finalMsg); saveMessage({ ...finalMsg, roomId: activeRoomId }); delete receivedFileChunks[message.fileId]; delete receivedFileData[message.fileId]; }
+            } else if (message.type === 'file-meta') { receivedFileData[message.fileProgressId] = { ...message.content, sender: message.sender }; renderMessage(message);
+            } else { renderMessage(message); saveMessage({ ...message, roomId: activeRoomId }); }
         };
     }
     
     function sendMessage(type, content) {
         if (!dataChannel || dataChannel.readyState !== 'open') return;
         const message = { type, content, sender: { ...user, id: myId }, timestamp: new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' }) };
-        if (type === 'file') { sendFile(content); } 
-        else { dataChannel.send(JSON.stringify(message)); renderMessage(message); saveMessage({ ...message, roomId: activeRoomId }); }
+        if (type === 'file') { sendFile(content); }
+        else { dataChannel.send(JSON.stringify(message)); if (type !== 'user-profile') { renderMessage(message); saveMessage({ ...message, roomId: activeRoomId }); } }
     }
     
     function sendFile(file) {
@@ -207,12 +152,12 @@
         reader.onload = (e) => {
             const base64 = e.target.result.split(',')[1];
             const chunks = base64.match(new RegExp('.{1,' + FILE_CHUNK_SIZE + '}', 'g'));
-            const metaMessage = { type: 'file-progress', content: { fileName: file.name }, sender: { ...user, id: myId }, timestamp: getTimestamp(), fileProgressId: fileId };
+            const metaMessage = { type: 'file-progress', content: { fileName: file.name }, sender: { ...user, id: myId }, timestamp: new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' }), fileProgressId: fileId };
             renderMessage(metaMessage);
-            const metaForPeer = { type: 'file-meta', content: { fileName: file.name, fileType: file.type, totalChunks: chunks.length }, sender: { ...user, id: myId }, timestamp: getTimestamp(), fileProgressId: fileId };
+            const metaForPeer = { type: 'file-meta', content: { fileName: file.name, fileType: file.type, totalChunks: chunks.length }, sender: { ...user, id: myId }, timestamp: new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' }), fileProgressId: fileId };
             dataChannel.send(JSON.stringify(metaForPeer));
             chunks.forEach((chunk, index) => {
-                dataChannel.send(JSON.stringify({ type: 'file-chunk', chunk, index, fileId, timestamp: getTimestamp() }));
+                dataChannel.send(JSON.stringify({ type: 'file-chunk', chunk, index, fileId, timestamp: new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' }) }));
             });
         };
         reader.readAsDataURL(file);
@@ -221,7 +166,6 @@
     // --- User Inputs ---
     ui.fileInput.addEventListener('change', e => { if (e.target.files[0]) { sendMessage('file', e.target.files[0]); } e.target.value = null; });
     ui.chatInput.addEventListener('keypress', event => { if (event.key === 'Enter' && ui.chatInput.value.trim() !== '') { sendMessage('text', ui.chatInput.value); ui.chatInput.value = ''; } });
-
 </script>
 </body>
 </html>
