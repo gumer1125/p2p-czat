@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P Czat v4</title>
+    <title>P2P Czat PRO</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
         :root {
@@ -17,7 +17,14 @@
             --yellow: #faa61a;
             --red: #f04747;
             --blue: #5865F2;
+            --interactive-hover: #474b52;
         }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
         body {
             font-family: 'Whitney', 'Helvetica Neue', Helvetica, Arial, sans-serif;
             margin: 0;
@@ -27,158 +34,47 @@
             height: 100vh;
             overflow: hidden;
         }
-        .app-container {
-            display: flex;
-            width: 100%;
-        }
-        .sidebar {
-            width: 280px;
-            background-color: var(--background-secondary);
-            display: flex;
-            flex-direction: column;
-            padding: 10px;
-        }
-        .sidebar h2 {
-            color: var(--header-primary);
-            font-size: 16px;
-            padding: 0 10px;
-            margin-bottom: 20px;
-        }
-        .panel {
-            border: 1px solid var(--background-tertiary);
-            border-radius: 8px;
-            padding: 15px;
-            background-color: var(--background-tertiary);
-            margin-bottom: 15px;
-        }
-        .panel h3 {
-            margin-top: 0;
-            font-size: 14px;
-            color: var(--header-primary);
-        }
-        #connection-status {
-            padding: 5px 8px;
-            border-radius: 5px;
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 10px;
-            background-color: var(--red);
-        }
-        #connection-status.connecting {
-            background-color: var(--yellow);
-        }
-        #connection-status.connected {
-            background-color: var(--green);
-        }
-        .panel input[type="text"] {
-            width: calc(100% - 20px);
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            border: 1px solid var(--background-primary);
-            background-color: var(--background-secondary);
-            color: var(--text-normal);
-        }
-        .panel button {
-            width: 100%;
-            padding: 10px;
-            border: none;
-            border-radius: 5px;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            margin-bottom: 10px;
-        }
-        #save-settings-btn {
-            background-color: var(--blue);
-        }
-        #create-room-btn {
-            background-color: var(--green);
-        }
-        #join-room-btn {
-            background-color: var(--blue);
-        }
-        .main-content {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            background-color: var(--background-primary);
-        }
-        .chat-messages {
-            flex-grow: 1;
-            padding: 20px;
-            overflow-y: auto;
-        }
-        .message {
-            margin-bottom: 15px;
-            display: flex;
-            align-items: flex-start;
-        }
-        .avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            margin-right: 15px;
-            flex-shrink: 0;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 20px;
-            color: white;
-        }
-        .message-content {
-            display: flex;
-            flex-direction: column;
-        }
-        .message-header {
-            font-size: 14px;
-            font-weight: bold;
-            margin-bottom: 4px;
-        }
-        .message-body a {
-            color: #00a8fc;
-            text-decoration: underline;
-        }
-        .message-body img, .message-body video {
-            max-width: 400px;
-            max-height: 300px;
-            border-radius: 8px;
-            margin-top: 5px;
-            cursor: pointer;
-        }
-        .chat-input-area {
-            padding: 20px;
-            background-color: var(--background-primary);
-            border-top: 1px solid var(--background-secondary);
-            display: flex;
-            align-items: center;
-        }
-        #chat-input {
-            flex-grow: 1;
-            padding: 12px;
-            background-color: var(--background-secondary);
-            border: none;
-            border-radius: 8px;
-            color: var(--text-normal);
-            resize: none;
-            margin-right: 10px;
-        }
-        #file-btn {
-            background: var(--background-secondary);
-            border: none;
-            color: #b9bbbe;
-            font-size: 24px;
-            cursor: pointer;
-            padding: 8px;
-            border-radius: 5px;
-        }
+        .app-container { display: flex; width: 100%; }
+        .sidebar { width: 280px; background-color: var(--background-secondary); display: flex; flex-direction: column; padding: 10px; box-shadow: 2px 0 5px rgba(0,0,0,0.2); z-index: 2;}
+        .sidebar h2 { color: var(--header-primary); font-size: 16px; padding: 0 10px; margin-bottom: 20px; }
+        .panel { border-radius: 8px; padding: 15px; background-color: var(--background-tertiary); margin-bottom: 15px; transition: border-color 0.3s ease; border: 1px solid var(--background-tertiary); }
+        .panel h3 { margin-top: 0; font-size: 14px; color: var(--header-primary); }
+        #connection-status { padding: 5px 8px; border-radius: 5px; font-weight: bold; text-align: center; margin-bottom: 10px; background-color: var(--red); transition: background-color 0.3s ease; }
+        #connection-status.connecting { background-color: var(--yellow); }
+        #connection-status.connected { background-color: var(--green); }
+        .panel input[type="text"] { width: calc(100% - 22px); padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid var(--background-primary); background-color: var(--background-secondary); color: var(--text-normal); transition: border-color 0.3s ease, box-shadow 0.3s ease; }
+        .panel input[type="text"]:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 5px var(--blue); }
+        .panel button { width: 100%; padding: 10px; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; margin-bottom: 10px; transition: background-color 0.2s ease, transform 0.1s ease; }
+        .panel button:hover { opacity: 0.9; }
+        .panel button:active { transform: scale(0.98); }
+        .panel button:disabled { background-color: var(--text-muted); cursor: not-allowed; }
+        #save-settings-btn { background-color: var(--blue); }
+        #create-room-btn { background-color: var(--green); }
+        #join-room-btn { background-color: var(--blue); }
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; background-color: var(--background-primary); }
+        .chat-messages { flex-grow: 1; padding: 20px; overflow-y: auto; scroll-behavior: smooth; }
+        .message { margin-bottom: 15px; display: flex; align-items: flex-start; animation: fadeIn 0.3s ease-out; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; margin-right: 15px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; color: white; }
+        .message-content { display: flex; flex-direction: column; max-width: 80%; }
+        .message-header { display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px; }
+        .message-nick { font-size: 14px; font-weight: bold; }
+        .message-timestamp { font-size: 11px; color: var(--text-muted); }
+        .message-body a { color: #00a8fc; text-decoration: none; }
+        .message-body a:hover { text-decoration: underline; }
+        .message-body img, .message-body video { max-width: 100%; max-height: 300px; border-radius: 8px; margin-top: 5px; cursor: pointer; }
+        .progress-bar { width: 200px; height: 10px; background-color: var(--background-secondary); border-radius: 5px; overflow: hidden; margin-top: 5px; }
+        .progress-bar-fill { width: 0%; height: 100%; background-color: var(--blue); transition: width 0.2s ease; }
+        .chat-input-area { padding: 20px; background-color: #40444b; border-top: 1px solid var(--background-tertiary); display: flex; align-items: center; box-shadow: 0 -2px 5px rgba(0,0,0,0.1); }
+        #chat-input { flex-grow: 1; padding: 12px; background-color: var(--background-secondary); border: none; border-radius: 8px; color: var(--text-normal); resize: none; margin-right: 10px; }
+        #file-btn { background: transparent; border: none; color: #b9bbbe; font-size: 24px; cursor: pointer; padding: 8px; border-radius: 50%; transition: background-color 0.2s ease; }
+        #file-btn:hover { background-color: var(--interactive-hover); }
+        #file-btn:disabled { color: var(--text-muted); cursor: not-allowed; }
     </style>
 </head>
 <body>
     <div class="app-container">
         <div class="sidebar">
-            <h2>P2P Czat</h2>
+            <h2>P2P Czat PRO</h2>
             <div class="panel" id="user-settings">
                 <h3>Ustawienia</h3>
                 <input type="text" id="nickname-input" placeholder="Twój nick...">
@@ -204,16 +100,7 @@
 
 <script>
     // --- Elementy UI ---
-    const nicknameInput = document.getElementById('nickname-input');
-    const saveSettingsBtn = document.getElementById('save-settings-btn');
-    const roomCodeInput = document.getElementById('room-code-input');
-    const createRoomBtn = document.getElementById('create-room-btn');
-    const joinRoomBtn = document.getElementById('join-room-btn');
-    const chatInput = document.getElementById('chat-input');
-    const chatMessages = document.getElementById('chat-messages');
-    const connectionStatus = document.getElementById('connection-status');
-    const fileInput = document.getElementById('file-input');
-    const fileBtn = document.getElementById('file-btn');
+    const nicknameInput = document.getElementById('nickname-input'), saveSettingsBtn = document.getElementById('save-settings-btn'), roomCodeInput = document.getElementById('room-code-input'), createRoomBtn = document.getElementById('create-room-btn'), joinRoomBtn = document.getElementById('join-room-btn'), chatInput = document.getElementById('chat-input'), chatMessages = document.getElementById('chat-messages'), connectionStatus = document.getElementById('connection-status'), fileInput = document.getElementById('file-input'), fileBtn = document.getElementById('file-btn');
 
     // --- Zmienne Aplikacji ---
     let peerConnection, dataChannel, mqttClient;
@@ -222,47 +109,25 @@
     const BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt';
     const TOPIC_PREFIX = 'p2p-chat-app-vercel-demo-xyz789/';
     const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-    const FILE_CHUNK_SIZE = 16 * 1024; // 16KB - mniejsze kawałki dla większej stabilności
+    const FILE_CHUNK_SIZE = 16 * 1024;
     let fileSendQueue = [];
+    let isSendingFile = false;
 
-    // --- Inicjalizacja & Ustawienia ---
-    document.addEventListener('DOMContentLoaded', () => {
-        loadUserSettings();
-    });
+    // --- Ustawienia Użytkownika ---
+    document.addEventListener('DOMContentLoaded', () => { loadUserSettings(); });
+    function loadUserSettings() { const savedUser = localStorage.getItem('p2p-user'); if (savedUser) { user = JSON.parse(savedUser); nicknameInput.value = user.nick; enableConnectionButtons(); } }
+    saveSettingsBtn.addEventListener('click', () => { const nick = nicknameInput.value.trim(); if (nick) { user.nick = nick; user.color = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'); localStorage.setItem('p2p-user', JSON.stringify(user)); alert('Zapisano nick!'); enableConnectionButtons(); } else { alert('Wpisz nick!'); } });
+    function enableConnectionButtons() { createRoomBtn.disabled = false; joinRoomBtn.disabled = false; document.getElementById('user-settings').style.borderColor = 'var(--green)'; }
 
-    function loadUserSettings() {
-        const savedUser = localStorage.getItem('p2p-user');
-        if (savedUser) {
-            user = JSON.parse(savedUser);
-            nicknameInput.value = user.nick;
-            enableConnectionButtons();
-        }
-    }
-
-    saveSettingsBtn.addEventListener('click', () => {
-        const nick = nicknameInput.value.trim();
-        if (nick) {
-            user.nick = nick;
-            user.color = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
-            localStorage.setItem('p2p-user', JSON.stringify(user));
-            alert('Zapisano nick!');
-            enableConnectionButtons();
-        } else {
-            alert('Wpisz nick!');
-        }
-    });
-
-    function enableConnectionButtons() {
-        createRoomBtn.disabled = false;
-        joinRoomBtn.disabled = false;
-        document.getElementById('user-settings').style.borderColor = '#43b581';
-    }
-
-    // --- Logika Wiadomości i Wyświetlania ---
+    // --- Funkcje Pomocnicze i Wizualizacje ---
+    function getTimestamp() { return new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' }); }
+    function updateStatus(status, text) { connectionStatus.className = status; connectionStatus.textContent = text; const connected = status === 'connected'; chatInput.disabled = !connected; fileBtn.disabled = !connected; }
+    
+    // --- Renderowanie Wiadomości ---
     function renderMessage(msgData) {
-        const { type, content, sender } = msgData;
+        const { type, content, sender, timestamp, fileProgressId } = msgData;
         const isYou = sender && sender.id === myId;
-        
+
         const messageDiv = document.createElement('div');
         messageDiv.classList.add('message');
 
@@ -278,286 +143,187 @@
 
         const headerDiv = document.createElement('div');
         headerDiv.className = 'message-header';
+        const nickSpan = document.createElement('span');
+        nickSpan.className = 'message-nick';
+        nickSpan.style.color = isYou ? 'var(--green)' : 'var(--yellow)';
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'message-timestamp';
+        timeSpan.textContent = timestamp;
         
         const bodyDiv = document.createElement('div');
         bodyDiv.className = 'message-body';
 
-        if (type === 'text') {
-            headerDiv.textContent = isYou ? 'Ty' : sender.nick;
-            headerDiv.style.color = isYou ? '#43b581' : '#faa61a';
-            const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
-            bodyDiv.innerHTML = content.replace(urlRegex, url => `<a href="${url}" target="_blank">${url}</a>`);
-        } else if (type === 'file') {
-            headerDiv.textContent = isYou ? 'Ty' : sender.nick;
-            headerDiv.style.color = isYou ? '#43b581' : '#faa61a';
-            const blob = new Blob([content.data], { type: content.fileType });
-            const url = URL.createObjectURL(blob);
-            if (content.fileType.startsWith('image/')) {
-                const img = document.createElement('img');
-                img.src = url;
-                bodyDiv.appendChild(img);
-            } else if (content.fileType.startsWith('video/')) {
-                const video = document.createElement('video');
-                video.src = url;
-                video.controls = true;
-                bodyDiv.appendChild(video);
-            } else {
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = content.fileName;
-                a.textContent = `Pobierz plik: ${content.fileName}`;
-                bodyDiv.appendChild(a);
-            }
-        } else if (type === 'system') {
-            headerDiv.textContent = 'System';
-            headerDiv.style.color = '#72767d';
+        if (type === 'system') {
             bodyDiv.textContent = content;
-            // Wiadomości systemowe nie mają avatara
-            messageDiv.appendChild(headerDiv);
-            messageDiv.appendChild(bodyDiv);
-            chatMessages.appendChild(messageDiv);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
-            return;
-        }
+            bodyDiv.style.fontStyle = 'italic';
+            bodyDiv.style.color = 'var(--text-muted)';
+            contentDiv.appendChild(bodyDiv);
+        } else {
+             nickSpan.textContent = isYou ? 'Ty' : sender.nick;
+             headerDiv.appendChild(nickSpan);
+             headerDiv.appendChild(timeSpan);
+             contentDiv.appendChild(headerDiv);
 
-        contentDiv.appendChild(headerDiv);
-        contentDiv.appendChild(bodyDiv);
-        messageDiv.appendChild(avatar);
+            if (type === 'text') {
+                const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+                bodyDiv.innerHTML = content.replace(urlRegex, url => `<a href="${url}" target="_blank">${url}</a>`);
+            } else if (type === 'file-progress') {
+                bodyDiv.textContent = `Plik: ${content.fileName}`;
+                const progress = document.createElement('div');
+                progress.className = 'progress-bar';
+                progress.id = fileProgressId;
+                const fill = document.createElement('div');
+                fill.className = 'progress-bar-fill';
+                progress.appendChild(fill);
+                bodyDiv.appendChild(progress);
+            } else if (type === 'file') {
+                const blob = new Blob([content.data], { type: content.fileType });
+                const url = URL.createObjectURL(blob);
+                if (content.fileType.startsWith('image/')) {
+                    const img = document.createElement('img');
+                    img.src = url;
+                    img.onclick = () => window.open(url, '_blank');
+                    bodyDiv.appendChild(img);
+                } else if (content.fileType.startsWith('video/')) {
+                    const video = document.createElement('video');
+                    video.src = url;
+                    video.controls = true;
+                    bodyDiv.appendChild(video);
+                } else {
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = content.fileName;
+                    a.textContent = `Pobierz plik: ${content.fileName}`;
+                    bodyDiv.appendChild(a);
+                }
+            }
+            contentDiv.appendChild(bodyDiv);
+            messageDiv.appendChild(avatar);
+        }
+        
         messageDiv.appendChild(contentDiv);
         chatMessages.appendChild(messageDiv);
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
-    
-    // --- GŁÓWNA LOGIKA POŁĄCZENIA ---
 
+    // --- Główna Logika Połączenia (WebRTC + MQTT) ---
     function resetConnection() {
         if (dataChannel) dataChannel.close();
         if (peerConnection) peerConnection.close();
         if (mqttClient) mqttClient.end();
-        peerConnection = null;
-        dataChannel = null;
-        fileSendQueue = [];
+        peerConnection = null; dataChannel = null; fileSendQueue = []; isSendingFile = false;
         updateStatus('disconnected', 'Rozłączono');
     }
-
-    function updateStatus(status, text) {
-        connectionStatus.className = status;
-        connectionStatus.textContent = text;
-        const connected = status === 'connected';
-        chatInput.disabled = !connected;
-        fileBtn.disabled = !connected;
-    }
-
+    
     function initializePeerConnection(isInitiator) {
         resetConnection();
         peerConnection = new RTCPeerConnection(configuration);
-
-        peerConnection.onicecandidate = event => {
-            // ICE candidates are handled automatically by modern browsers.
-            // The full description will be sent when icegatheringstate is 'complete'.
-        };
-
-        peerConnection.onconnectionstatechange = () => {
-            if (peerConnection.connectionState === 'failed' || peerConnection.connectionState === 'disconnected' || peerConnection.connectionState === 'closed') {
-                resetConnection();
-            }
-        };
-
-        if (isInitiator) {
-            dataChannel = peerConnection.createDataChannel('chat');
-            setupDataChannelEvents();
-        } else {
-            peerConnection.ondatachannel = event => {
-                dataChannel = event.channel;
-                setupDataChannelEvents();
-            };
-        }
+        peerConnection.onicegatheringstatechange = () => { if (peerConnection.iceGatheringState === 'complete' && isInitiator) { const topics = getTopics(); mqttClient.publish(topics.offerTopic, JSON.stringify({ senderId: myId, payload: peerConnection.localDescription }), { retain: true }); } };
+        peerConnection.onconnectionstatechange = () => { if (['failed', 'disconnected', 'closed'].includes(peerConnection.connectionState)) { resetConnection(); } };
+        if (isInitiator) { dataChannel = peerConnection.createDataChannel('chat', { ordered: true }); setupDataChannelEvents(); } 
+        else { peerConnection.ondatachannel = event => { dataChannel = event.channel; setupDataChannelEvents(); }; }
     }
 
+    function getTopics() { const roomCode = roomCodeInput.value.trim(); return { offerTopic: TOPIC_PREFIX + roomCode + '/offer', answerTopic: TOPIC_PREFIX + roomCode + '/answer' }; }
+    
     function connectSignaling(isInitiator) {
         const roomCode = roomCodeInput.value.trim();
-        if (!roomCode) {
-            alert('Wpisz kod pokoju!');
-            return null;
-        }
-        
+        if (!roomCode) { alert('Wpisz kod pokoju!'); return false; }
         initializePeerConnection(isInitiator);
-        
-        const offerTopic = TOPIC_PREFIX + roomCode + '/offer';
-        const answerTopic = TOPIC_PREFIX + roomCode + '/answer';
-        
+        const { offerTopic, answerTopic } = getTopics();
         updateStatus('connecting', 'Łączenie...');
         mqttClient = mqtt.connect(BROKER_URL, { clientId: myId });
-
-        mqttClient.on('connect', () => {
-            renderMessage({type:'system', content:'Połączono z serwerem sygnalizacyjnym.'});
-            if (isInitiator) {
-                mqttClient.subscribe(answerTopic);
-            } else {
-                mqttClient.subscribe(offerTopic);
-            }
-        });
-
-        mqttClient.on('message', (topic, message) => {
-            try {
-                const data = JSON.parse(message.toString());
-                if (data.senderId === myId) return; // Ignoruj własne wiadomości
-
-                if (topic === offerTopic) handleReceivedOffer(data.payload);
-                else if (topic === answerTopic) handleReceivedAnswer(data.payload);
-            } catch (e) {
-                console.error("Błąd parsowania wiadomości MQTT:", e);
-            }
-        });
-
-        return { offerTopic, answerTopic };
+        mqttClient.on('connect', () => { renderMessage({ type: 'system', content: 'Połączono z serwerem sygnalizacyjnym.' }); isInitiator ? mqttClient.subscribe(answerTopic) : mqttClient.subscribe(offerTopic); });
+        mqttClient.on('message', (topic, message) => { const data = JSON.parse(message.toString()); if (data.senderId === myId) return; if (topic === offerTopic) handleReceivedOffer(data.payload); else if (topic === answerTopic) handleReceivedAnswer(data.payload); });
+        return true;
     }
 
-    createRoomBtn.addEventListener('click', async () => {
-        const topics = connectSignaling(true);
-        if (!topics) return;
+    createRoomBtn.addEventListener('click', async () => { if (!connectSignaling(true)) return; try { const offer = await peerConnection.createOffer(); await peerConnection.setLocalDescription(offer); } catch (e) { console.error("Błąd tworzenia oferty:", e); resetConnection(); } });
+    joinRoomBtn.addEventListener('click', () => { connectSignaling(false); });
 
-        try {
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
+    async function handleReceivedOffer(offer) { if (peerConnection.signalingState !== 'stable') return; try { await peerConnection.setRemoteDescription(new RTCSessionDescription(offer)); const answer = await peerConnection.createAnswer(); await peerConnection.setLocalDescription(answer); peerConnection.onicegatheringstatechange = () => { if (peerConnection.iceGatheringState === 'complete') { mqttClient.publish(getTopics().answerTopic, JSON.stringify({ senderId: myId, payload: peerConnection.localDescription }), { retain: true }); } }; } catch (e) { console.error("Błąd obsługi oferty:", e); resetConnection(); } }
+    async function handleReceivedAnswer(answer) { if (peerConnection.signalingState !== 'have-local-offer') return; try { await peerConnection.setRemoteDescription(new RTCSessionDescription(answer)); } catch (e) { console.error("Błąd obsługi odpowiedzi:", e); resetConnection(); } }
 
-            peerConnection.onicegatheringstatechange = () => {
-                if (peerConnection.iceGatheringState === 'complete') {
-                     mqttClient.publish(topics.offerTopic, JSON.stringify({ senderId: myId, payload: peerConnection.localDescription }), { retain: true });
-                }
-            }
-        } catch (e) {
-            console.error("Błąd tworzenia oferty:", e);
-            resetConnection();
-        }
-    });
-
-    joinRoomBtn.addEventListener('click', () => {
-        connectSignaling(false);
-    });
-
-    async function handleReceivedOffer(offer) {
-        if (peerConnection.signalingState !== 'stable') return;
-        try {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-
-            peerConnection.onicegatheringstatechange = () => {
-                if (peerConnection.iceGatheringState === 'complete') {
-                    const roomCode = roomCodeInput.value.trim();
-                    const answerTopic = TOPIC_PREFIX + roomCode + '/answer';
-                    mqttClient.publish(answerTopic, JSON.stringify({ senderId: myId, payload: peerConnection.localDescription }), { retain: true });
-                }
-            }
-        } catch (e) {
-            console.error("Błąd obsługi oferty:", e);
-            resetConnection();
-        }
-    }
-    
-    async function handleReceivedAnswer(answer) {
-        if (peerConnection.signalingState !== 'have-local-offer') return;
-        try {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-        } catch (e) {
-            console.error("Błąd obsługi odpowiedzi:", e);
-            resetConnection();
-        }
-    }
-    
-    // --- OBSŁUGA KANAŁU DANYCH I PLIKÓW ---
-
+    // --- Logika Kanału Danych i Plików ---
     function setupDataChannelEvents() {
-        dataChannel.onopen = () => {
-            updateStatus('connected', 'Połączono');
-            renderMessage({type:'system', content:'Połączenie P2P zostało nawiązane!'});
-        };
+        dataChannel.onopen = () => { updateStatus('connected', 'Połączono'); renderMessage({type: 'system', content: 'Połączenie P2P zostało nawiązane!'}); };
         dataChannel.onclose = () => resetConnection();
         dataChannel.onerror = err => console.error('Błąd kanału danych:', err);
-
-        let receivedFileChunks = [], receivedFileData = {};
+        
+        let receivedFileChunks = {}, receivedFileData = {};
         dataChannel.onmessage = event => {
             if (event.data instanceof ArrayBuffer) {
-                receivedFileChunks.push(event.data);
-                if (receivedFileChunks.length === receivedFileData.totalChunks) {
-                    const fullFile = new Blob(receivedFileChunks);
-                    renderMessage({ type: 'file', content: { data: fullFile, fileType: receivedFileData.fileType, fileName: receivedFileData.fileName }, sender: receivedFileData.sender });
-                    receivedFileChunks = [];
+                const { id, index, chunk } = msgpack.decode(new Uint8Array(event.data));
+                if (!receivedFileChunks[id]) receivedFileChunks[id] = [];
+                receivedFileChunks[id][index] = chunk;
+                const progress = (receivedFileChunks[id].filter(Boolean).length / receivedFileData[id].totalChunks) * 100;
+                document.querySelector(`#${id} .progress-bar-fill`).style.width = `${progress}%`;
+                if (receivedFileChunks[id].filter(Boolean).length === receivedFileData[id].totalChunks) {
+                    const fullFile = new Blob(receivedFileChunks[id]);
+                    document.getElementById(id)?.parentElement.parentElement.remove();
+                    renderMessage({ type: 'file', content: { data: fullFile, fileType: receivedFileData[id].fileType, fileName: receivedFileData[id].fileName }, sender: receivedFileData[id].sender, timestamp: getTimestamp() });
+                    delete receivedFileChunks[id]; delete receivedFileData[id];
                 }
                 return;
             }
             const message = JSON.parse(event.data);
             if (message.type === 'file-meta') {
-                receivedFileData = message.content;
-                receivedFileData.sender = message.sender;
-                receivedFileChunks = [];
+                receivedFileData[message.fileProgressId] = { ...message.content, sender: message.sender };
+                renderMessage(message);
             } else {
                 renderMessage(message);
             }
         };
-
         dataChannel.bufferedAmountLowThreshold = FILE_CHUNK_SIZE * 5;
         dataChannel.onbufferedamountlow = () => sendNextFileChunk();
     }
     
     function sendMessage(type, content) {
-        const message = { type, content, sender: { ...user, id: myId } };
-        if (dataChannel && dataChannel.readyState === 'open') {
-            if (type === 'file') {
-                sendFile(content);
-            } else {
-                dataChannel.send(JSON.stringify(message));
-                renderMessage(message);
-            }
-        }
+        if (!dataChannel || dataChannel.readyState !== 'open') return;
+        const message = { type, content, sender: { ...user, id: myId }, timestamp: getTimestamp() };
+        if (type === 'file') { sendFile(content); } 
+        else { dataChannel.send(JSON.stringify(message)); renderMessage(message); }
     }
     
     async function sendFile(file) {
+        const fileProgressId = 'file-' + Math.random().toString(36).substr(2, 9);
         const totalChunks = Math.ceil(file.size / FILE_CHUNK_SIZE);
-        const metaMessage = { type: 'file-meta', content: { fileName: file.name, fileType: file.type, fileSize: file.size, totalChunks }, sender: { ...user, id: myId } };
-        dataChannel.send(JSON.stringify(metaMessage));
+        const metaMessage = { type: 'file-progress', content: { fileName: file.name }, sender: { ...user, id: myId }, timestamp: getTimestamp(), fileProgressId };
+        renderMessage(metaMessage);
+        
+        const metaMessageForPeer = { type: 'file-meta', content: { fileName: file.name, fileType: file.type, fileSize: file.size, totalChunks }, sender: { ...user, id: myId }, timestamp: getTimestamp(), fileProgressId };
+        dataChannel.send(JSON.stringify(metaMessageForPeer));
         
         let offset = 0;
         for (let i = 0; i < totalChunks; i++) {
             const slice = file.slice(offset, offset + FILE_CHUNK_SIZE);
             const buffer = await slice.arrayBuffer();
-            fileSendQueue.push(buffer);
+            fileSendQueue.push({ id: fileProgressId, index: i, chunk: buffer, total: totalChunks });
             offset += buffer.byteLength;
         }
-        sendNextFileChunk();
+        if (!isSendingFile) sendNextFileChunk();
     }
     
     function sendNextFileChunk() {
-        if (fileSendQueue.length === 0) return;
+        if (fileSendQueue.length === 0) { isSendingFile = false; return; }
+        isSendingFile = true;
         while (fileSendQueue.length > 0) {
-            if (dataChannel.bufferedAmount > dataChannel.bufferedAmountLowThreshold) {
-                return; 
-            }
-            const chunk = fileSendQueue.shift();
-            try {
-                dataChannel.send(chunk);
-            } catch (e) {
-                console.error("Błąd wysyłania chunka:", e);
-                fileSendQueue = []; // Wyczyść kolejkę przy błędzie
-                return;
-            }
+            if (dataChannel.bufferedAmount > dataChannel.bufferedAmountLowThreshold) return;
+            const item = fileSendQueue.shift();
+            const payload = msgpack.encode({ id: item.id, index: item.index, chunk: item.chunk });
+            dataChannel.send(payload);
+            const progress = ((item.total - fileSendQueue.filter(f=>f.id === item.id).length) / item.total) * 100;
+            document.querySelector(`#${item.id} .progress-bar-fill`).style.width = `${progress}%`;
         }
+        isSendingFile = false;
     }
 
     // --- Obsługa Inputów ---
-    fileInput.addEventListener('change', e => {
-        if (e.target.files[0]) {
-            sendMessage('file', e.target.files[0]);
-        }
-        e.target.value = null; // Pozwala na ponowne wybranie tego samego pliku
-    });
-    chatInput.addEventListener('keypress', event => {
-        if (event.key === 'Enter' && chatInput.value.trim() !== '') {
-            sendMessage('text', chatInput.value);
-            chatInput.value = '';
-        }
-    });
+    fileInput.addEventListener('change', e => { if (e.target.files[0]) { sendMessage('file', e.target.files[0]); } e.target.value = null; });
+    chatInput.addEventListener('keypress', event => { if (event.key === 'Enter' && chatInput.value.trim() !== '') { sendMessage('text', chatInput.value); chatInput.value = ''; } });
+
 </script>
+<!-- Dodajemy bibliotekę MessagePack do obsługi danych binarnych -->
+<script src="https://unpkg.com/msgpack-lite/dist/msgpack.min.js"></script>
 </body>
 </html>
