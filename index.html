@@ -3,47 +3,33 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P Czat przez Internet v2</title>
-    <!-- Importujemy bibliotekę MQTT.js z publicznego CDN -->
+    <title>P2P Czat v3</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
-        :root {
-            --background-primary: #36393f;
-            --background-secondary: #2f3136;
-            --background-tertiary: #202225;
-            --text-normal: #dcddde;
-            --text-muted: #72767d;
-            --header-primary: #ffffff;
-            --green: #43b581;
-            --yellow: #faa61a;
-            --red: #f04747;
-            --blue: #5865F2;
-        }
-        body { font-family: 'Whitney', 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; background-color: var(--background-primary); color: var(--text-normal); display: flex; height: 100vh; overflow: hidden; }
+        :root { /* ... bez zmian ... */ }
+        body { font-family: 'Whitney', 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; background-color: #36393f; color: #dcddde; display: flex; height: 100vh; overflow: hidden; }
         .app-container { display: flex; width: 100%; }
-        .sidebar { width: 240px; background-color: var(--background-secondary); display: flex; flex-direction: column; padding: 10px; }
-        .sidebar h2 { color: var(--header-primary); font-size: 16px; padding: 0 10px; margin-bottom: 20px; }
-        .connection-panel { border: 1px solid var(--background-tertiary); border-radius: 8px; padding: 15px; background-color: var(--background-tertiary); }
-        .connection-panel h3 { margin-top: 0; font-size: 14px; color: var(--header-primary); }
+        .sidebar { width: 280px; background-color: #2f3136; display: flex; flex-direction: column; padding: 10px; }
+        .sidebar h2 { color: #ffffff; font-size: 16px; padding: 0 10px; margin-bottom: 20px; }
+        .panel { border: 1px solid #202225; border-radius: 8px; padding: 15px; background-color: #202225; margin-bottom: 15px; }
+        .panel h3 { margin-top: 0; font-size: 14px; color: #ffffff; }
         #connection-status { padding: 5px 8px; border-radius: 5px; font-weight: bold; text-align: center; margin-bottom: 10px; }
-        #connection-status.disconnected { background-color: var(--red); }
-        #connection-status.connecting { background-color: var(--yellow); }
-        #connection-status.connected { background-color: var(--green); }
-        .connection-panel input { width: calc(100% - 20px); padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid var(--background-primary); background-color: var(--background-secondary); color: var(--text-normal); text-align: center; }
-        .connection-panel button { width: 100%; padding: 10px; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
-        #create-room-btn { background-color: var(--green); }
-        #join-room-btn { background-color: var(--blue); }
-        .main-content { flex-grow: 1; display: flex; flex-direction: column; background-color: var(--background-primary); }
+        .panel input[type="text"] { width: calc(100% - 20px); padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid #36393f; background-color: #2f3136; color: #dcddde; }
+        .panel button { width: 100%; padding: 10px; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        #save-settings-btn { background-color: #5865F2; }
+        #create-room-btn { background-color: #43b581; }
+        #join-room-btn { background-color: #5865F2; }
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; background-color: #36393f; }
         .chat-messages { flex-grow: 1; padding: 20px; overflow-y: auto; }
         .message { margin-bottom: 15px; display: flex; align-items: flex-start; }
-        .message .avatar { width: 40px; height: 40px; border-radius: 50%; background-color: var(--text-muted); margin-right: 15px; flex-shrink: 0; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; margin-right: 15px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 20px; color: white; }
         .message-content { display: flex; flex-direction: column; }
         .message-header { font-size: 14px; font-weight: bold; margin-bottom: 4px; }
-        .message-header .sender-you { color: var(--green); }
-        .message-header .sender-peer { color: var(--yellow); }
-        .message-header .sender-system { color: var(--text-muted); font-style: italic; }
-        .chat-input-area { padding: 20px; background-color: var(--background-primary); border-top: 1px solid var(--background-secondary); }
-        #chat-input { width: 100%; padding: 12px; background-color: var(--background-secondary); border: none; border-radius: 8px; color: var(--text-normal); box-sizing: border-box; resize: none; }
+        .message-body a { color: #00a8fc; text-decoration: underline; }
+        .message-body img, .message-body video { max-width: 400px; max-height: 300px; border-radius: 8px; margin-top: 5px; }
+        .chat-input-area { padding: 20px; background-color: #36393f; border-top: 1px solid #2f3136; display: flex; align-items: center; }
+        #chat-input { flex-grow: 1; padding: 12px; background-color: #2f3136; border: none; border-radius: 8px; color: #dcddde; resize: none; margin-right: 10px; }
+        #file-btn { background: #2f3136; border: none; color: #b9bbbe; font-size: 24px; cursor: pointer; padding: 8px; border-radius: 5px; }
     </style>
 </head>
 <body>
@@ -51,115 +37,265 @@
 <div class="app-container">
     <div class="sidebar">
         <h2>P2P Czat</h2>
-        <div class="connection-panel">
+        <div class="panel" id="user-settings">
+            <h3>Ustawienia</h3>
+            <input type="text" id="nickname-input" placeholder="Twój nick...">
+            <button id="save-settings-btn">Zapisz</button>
+        </div>
+        <div class="panel" id="connection-panel">
             <h3>Połączenie</h3>
             <div id="connection-status" class="disconnected">Rozłączono</div>
             <input type="text" id="room-code-input" placeholder="Wpisz kod pokoju...">
-            <button id="create-room-btn">Stwórz Pokój</button>
-            <button id="join-room-btn">Dołącz do Pokoju</button>
+            <button id="create-room-btn" disabled>Stwórz Pokój</button>
+            <button id="join-room-btn" disabled>Dołącz do Pokoju</button>
         </div>
     </div>
     <div class="main-content">
         <div class="chat-messages" id="chat-messages"></div>
         <div class="chat-input-area">
             <input type="text" id="chat-input" placeholder="Napisz wiadomość..." disabled>
+            <input type="file" id="file-input" style="display: none;">
+            <button id="file-btn" disabled title="Wyślij plik" onclick="document.getElementById('file-input').click()">+</button>
         </div>
     </div>
 </div>
 
 <script>
+    // --- Elementy UI ---
+    const nicknameInput = document.getElementById('nickname-input');
+    const saveSettingsBtn = document.getElementById('save-settings-btn');
     const roomCodeInput = document.getElementById('room-code-input');
     const createRoomBtn = document.getElementById('create-room-btn');
     const joinRoomBtn = document.getElementById('join-room-btn');
     const chatInput = document.getElementById('chat-input');
     const chatMessages = document.getElementById('chat-messages');
     const connectionStatus = document.getElementById('connection-status');
+    const fileInput = document.getElementById('file-input');
+    const fileBtn = document.getElementById('file-btn');
 
+    // --- Zmienne Aplikacji ---
     let peerConnection;
     let dataChannel;
     let mqttClient;
     let roomCode = '';
-    
+    let myId = 'client-' + Math.random().toString(36).substr(2, 9);
+    let user = { nick: 'Anonim', color: '#7289da' };
+
     const BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt';
-    const TOPIC_PREFIX = 'p2p-chat-app-bartosz-demo-321/'; // Użyjmy bardziej unikalnego prefiksu
-    let offerTopic = '';
-    let answerTopic = '';
-    
+    const TOPIC_PREFIX = 'p2p-chat-app-vercel-demo-xyz789/';
     const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+    const FILE_CHUNK_SIZE = 64 * 1024; // 64KB
 
-    function updateStatus(status, text) { /* ... bez zmian ... */ }
-    function displayMessage(text, sender) { /* ... bez zmian ... */ }
-    // Te dwie funkcje są skopiowane bez zmian, żeby kod był krótszy
-    function updateStatus(status, text) { connectionStatus.className = status; connectionStatus.textContent = text; chatInput.disabled = (status !== 'connected'); }
-    function displayMessage(text, sender) { const messageDiv = document.createElement('div'); messageDiv.classList.add('message'); let senderClass, senderName, avatarHtml; if (sender === 'you') { senderClass = 'sender-you'; senderName = 'Ty'; avatarHtml = '<div class="avatar"></div>'; } else if (sender === 'peer') { senderClass = 'sender-peer'; senderName = 'Rozmówca'; avatarHtml = '<div class="avatar"></div>'; } else { senderClass = 'sender-system'; senderName = 'System'; avatarHtml = ''; } messageDiv.innerHTML = ` ${avatarHtml} <div class="message-content"> <div class="message-header"><span class="${senderClass}">${senderName}</span></div> <div>${text}</div> </div>`; chatMessages.appendChild(messageDiv); chatMessages.scrollTop = chatMessages.scrollHeight; }
-
-    function initializePeerConnection() {
-        if (peerConnection) peerConnection.close();
-        peerConnection = new RTCPeerConnection(configuration);
-        peerConnection.onconnectionstatechange = () => { if (peerConnection.connectionState === 'connected') { updateStatus('connected', 'Połączono'); displayMessage('Połączenie zostało nawiązane!', 'system'); if(mqttClient) mqttClient.end(); } else if (['disconnected', 'failed', 'closed'].includes(peerConnection.connectionState)) { updateStatus('disconnected', 'Rozłączono'); } };
-        peerConnection.ondatachannel = event => { dataChannel = event.channel; setupDataChannelEvents(); };
-    }
-    function setupDataChannelEvents() { dataChannel.onmessage = event => displayMessage(event.data, 'peer'); }
-
-    function connectSignaling() {
-        roomCode = roomCodeInput.value.trim();
-        if (!roomCode) { alert('Wpisz kod pokoju!'); return false; }
-        offerTopic = TOPIC_PREFIX + roomCode + '/offer';
-        answerTopic = TOPIC_PREFIX + roomCode + '/answer';
-        updateStatus('connecting', 'Łączenie z listonoszem...');
-        const clientId = 'p2p-client-' + Math.random().toString(16).substr(2, 8);
-        mqttClient = mqtt.connect(BROKER_URL, { clientId });
-        mqttClient.on('connect', () => { displayMessage('Połączono z serwerem sygnalizacyjnym. Gotowe.', 'system'); });
-        mqttClient.on('error', (err) => { alert('Błąd serwera sygnalizacyjnego.'); console.error(err); updateStatus('disconnected', 'Błąd połączenia'); });
-        mqttClient.on('message', (topic, message) => { const data = JSON.parse(message.toString()); if (topic === offerTopic && (!peerConnection || !peerConnection.currentRemoteDescription)) { displayMessage('Otrzymano ofertę. Tworzenie odpowiedzi...', 'system'); handleReceivedOffer(data); } else if (topic === answerTopic && peerConnection.signalingState === 'have-local-offer') { displayMessage('Otrzymano odpowiedź. Łączenie...', 'system'); handleReceivedAnswer(data); } });
-        return true;
-    }
-
-    createRoomBtn.addEventListener('click', async () => {
-        if (!connectSignaling()) return;
-        initializePeerConnection();
-        dataChannel = peerConnection.createDataChannel('chat');
-        setupDataChannelEvents();
-        mqttClient.subscribe(answerTopic);
-        peerConnection.onicecandidate = event => {
-            if (!event.candidate) {
-                const offer = peerConnection.localDescription;
-                // WAŻNA ZMIANA: Dodajemy flagę `retain`, żeby serwer przechował wiadomość!
-                mqttClient.publish(offerTopic, JSON.stringify(offer), { retain: true });
-                displayMessage('Pokój stworzony. Wysyłanie oferty... Czekam na odpowiedź.', 'system');
-            }
-        };
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        updateStatus('connecting', 'Czekanie na kolegę...');
+    // --- Inicjalizacja Aplikacji ---
+    document.addEventListener('DOMContentLoaded', () => {
+        loadUserSettings();
     });
 
-    joinRoomBtn.addEventListener('click', () => {
-        if (!connectSignaling()) return;
-        // Subskrybuj najpierw, potem inicjalizuj, żeby nie przegapić wiadomości
-        mqttClient.subscribe(offerTopic);
-        updateStatus('connecting', 'Dołączanie do pokoju...');
-        displayMessage('Nasłuchiwanie na ofertę od twórcy pokoju...', 'system');
-    });
-
-    async function handleReceivedOffer(offer) {
-        if (!peerConnection) initializePeerConnection();
-        peerConnection.onicecandidate = event => {
-            if (!event.candidate) {
-                const answer = peerConnection.localDescription;
-                // WAŻNA ZMIANA: Tu też dodajemy `retain` na wszelki wypadek.
-                mqttClient.publish(answerTopic, JSON.stringify(answer), { retain: true });
-                displayMessage('Wysyłanie odpowiedzi...', 'system');
-            }
-        };
-        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-        const answer = await peerConnection.createAnswer();
-        await peerConnection.setLocalDescription(answer);
+    function loadUserSettings() {
+        const savedUser = localStorage.getItem('p2p-user');
+        if (savedUser) {
+            user = JSON.parse(savedUser);
+            nicknameInput.value = user.nick;
+            enableConnectionButtons();
+        }
     }
 
+    saveSettingsBtn.addEventListener('click', () => {
+        const nick = nicknameInput.value.trim();
+        if (nick) {
+            user.nick = nick;
+            user.color = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+            localStorage.setItem('p2p-user', JSON.stringify(user));
+            alert('Zapisano nick!');
+            enableConnectionButtons();
+        } else {
+            alert('Wpisz nick!');
+        }
+    });
+    
+    function enableConnectionButtons() {
+        createRoomBtn.disabled = false;
+        joinRoomBtn.disabled = false;
+        document.getElementById('user-settings').style.borderColor = '#43b581';
+    }
+
+    // --- Logika Wiadomości i Wyświetlania ---
+    function renderMessage(msgData) {
+        const { type, content, sender } = msgData;
+        const isYou = sender.id === myId;
+        
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('message');
+
+        const avatar = document.createElement('div');
+        avatar.className = 'avatar';
+        avatar.style.backgroundColor = sender.color;
+        avatar.textContent = sender.nick.charAt(0).toUpperCase();
+
+        const contentDiv = document.createElement('div');
+        contentDiv.className = 'message-content';
+
+        const headerDiv = document.createElement('div');
+        headerDiv.className = 'message-header';
+        headerDiv.textContent = isYou ? 'Ty' : sender.nick;
+        headerDiv.style.color = isYou ? '#43b581' : '#faa61a';
+
+        const bodyDiv = document.createElement('div');
+        bodyDiv.className = 'message-body';
+
+        if (type === 'text') {
+            // Wykrywanie linków
+            const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig;
+            bodyDiv.innerHTML = content.replace(urlRegex, url => `<a href="${url}" target="_blank">${url}</a>`);
+        } else if (type === 'file') {
+            const blob = new Blob([content.data], { type: content.fileType });
+            const url = URL.createObjectURL(blob);
+            if (content.fileType.startsWith('image/')) {
+                const img = document.createElement('img');
+                img.src = url;
+                bodyDiv.appendChild(img);
+            } else if (content.fileType.startsWith('video/')) {
+                const video = document.createElement('video');
+                video.src = url;
+                video.controls = true;
+                bodyDiv.appendChild(video);
+            } else {
+                 const a = document.createElement('a');
+                 a.href = url;
+                 a.download = content.fileName;
+                 a.textContent = `Pobierz plik: ${content.fileName}`;
+                 bodyDiv.appendChild(a);
+            }
+        } else if (type === 'system') {
+            headerDiv.textContent = 'System';
+            headerDiv.style.color = '#72767d';
+            bodyDiv.textContent = content;
+        }
+
+        contentDiv.appendChild(headerDiv);
+        contentDiv.appendChild(bodyDiv);
+        messageDiv.appendChild(avatar);
+        messageDiv.appendChild(contentDiv);
+        chatMessages.appendChild(messageDiv);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function sendMessage(type, content) {
+        const message = {
+            type,
+            content,
+            sender: { ...user, id: myId },
+        };
+        if (dataChannel && dataChannel.readyState === 'open') {
+            if (type === 'file') {
+                // Specjalna obsługa plików (chunking)
+                sendFileInChunks(content);
+            } else {
+                 dataChannel.send(JSON.stringify(message));
+            }
+        }
+        if (type !== 'file') { // Renderowanie plików dzieje się po re-asembling'u
+            renderMessage(message);
+        }
+    }
+    
+    // --- Logika Połączenia (WebRTC + MQTT) ---
+    // ... Wiele funkcji (initializePeerConnection, etc.) jest tu skompresowanych dla czytelności
+    function initializePeerConnection() { if (peerConnection) peerConnection.close(); peerConnection = new RTCPeerConnection(configuration); peerConnection.onconnectionstatechange = () => { if (peerConnection.connectionState === 'connected') { updateStatus('connected', 'Połączono'); if(mqttClient) mqttClient.end(); } else if (['disconnected', 'failed', 'closed'].includes(peerConnection.connectionState)) { updateStatus('disconnected', 'Rozłączono'); } }; peerConnection.ondatachannel = event => { dataChannel = event.channel; setupDataChannelEvents(); }; }
+    function connectSignaling() { roomCode = roomCodeInput.value.trim(); if (!roomCode) { alert('Wpisz kod pokoju!'); return false; } const offerTopic = TOPIC_PREFIX + roomCode + '/offer'; const answerTopic = TOPIC_PREFIX + roomCode + '/answer'; updateStatus('connecting', 'Łączenie...'); mqttClient = mqtt.connect(BROKER_URL, { clientId: myId }); mqttClient.on('connect', () => { renderMessage({type:'system', content:'Połączono z serwerem sygnalizacyjnym.', sender:{nick:'System', color:'#fff', id:'system'}}); }); mqttClient.on('message', (topic, message) => { const data = JSON.parse(message.toString()); if (data.senderId === myId) return; /* IGNORUJ WŁASNE WIADOMOŚCI */ if (topic === offerTopic) { handleReceivedOffer(data.payload); } else if (topic === answerTopic) { handleReceivedAnswer(data.payload); } }); return { offerTopic, answerTopic }; }
+    function updateStatus(status, text) { connectionStatus.className = status; connectionStatus.textContent = text; const connected = status === 'connected'; chatInput.disabled = !connected; fileBtn.disabled = !connected; }
+
+    createRoomBtn.addEventListener('click', async () => { const topics = connectSignaling(); if (!topics) return; initializePeerConnection(); dataChannel = peerConnection.createDataChannel('chat'); setupDataChannelEvents(); mqttClient.subscribe(topics.answerTopic); peerConnection.onicecandidate = event => { if (!event.candidate) { const offer = peerConnection.localDescription; mqttClient.publish(topics.offerTopic, JSON.stringify({ senderId: myId, payload: offer }), { retain: true }); } }; const offer = await peerConnection.createOffer(); await peerConnection.setLocalDescription(offer); updateStatus('connecting', 'Czekanie na kolegę...'); });
+    joinRoomBtn.addEventListener('click', () => { const topics = connectSignaling(); if (!topics) return; initializePeerConnection(); mqttClient.subscribe(topics.offerTopic); updateStatus('connecting', 'Dołączanie...'); });
+
+    async function handleReceivedOffer(offer) { if (!peerConnection) initializePeerConnection(); peerConnection.onicecandidate = event => { if (!event.candidate) { const answer = peerConnection.localDescription; const topics = connectSignaling(); mqttClient.publish(topics.answerTopic, JSON.stringify({ senderId: myId, payload: answer }), { retain: true }); } }; await peerConnection.setRemoteDescription(new RTCSessionDescription(offer)); const answer = await peerConnection.createAnswer(); await peerConnection.setLocalDescription(answer); }
     async function handleReceivedAnswer(answer) { await peerConnection.setRemoteDescription(new RTCSessionDescription(answer)); }
     
-    chatInput.addEventListener('keypress', event => { if (event.key === 'Enter' && chatInput.value.trim() !== '' && dataChannel && dataChannel.readyState === 'open') { const message = chatInput.value; dataChannel.send(message); displayMessage(message, 'you'); chatInput.value = ''; } });
+    // --- Logika Kanału Danych (Odbieranie) ---
+    let receivedFileChunks = [];
+    let receivedFileData = {};
+    
+    function setupDataChannelEvents() {
+        dataChannel.onopen = () => console.log('Data channel otwarty');
+        dataChannel.onclose = () => console.log('Data channel zamknięty');
+        dataChannel.onmessage = event => {
+            // Sprawdzamy czy to chunk pliku czy zwykła wiadomość
+            if (event.data instanceof ArrayBuffer) {
+                receivedFileChunks.push(event.data);
+                // Sprawdzamy czy to ostatni chunk
+                if (receivedFileChunks.length === receivedFileData.totalChunks) {
+                    const fullFile = new Blob(receivedFileChunks);
+                    renderMessage({
+                        type: 'file',
+                        content: { data: fullFile, fileType: receivedFileData.fileType, fileName: receivedFileData.fileName },
+                        sender: receivedFileData.sender
+                    });
+                    receivedFileChunks = []; // Reset
+                }
+                return;
+            }
+
+            // To zwykła wiadomość JSON
+            const message = JSON.parse(event.data);
+            if (message.type === 'file-meta') {
+                // Start odbierania pliku
+                receivedFileData = message.content;
+                receivedFileData.sender = message.sender;
+                receivedFileChunks = [];
+            } else {
+                renderMessage(message);
+            }
+        };
+    }
+    
+    // --- Wysyłanie Plików (Chunking) ---
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            sendMessage('file', file);
+        }
+    });
+
+    async function sendFileInChunks(file) {
+        const totalChunks = Math.ceil(file.size / FILE_CHUNK_SIZE);
+        
+        // 1. Wyślij metadane
+        const metaMessage = {
+            type: 'file-meta',
+            content: {
+                fileName: file.name,
+                fileType: file.type,
+                fileSize: file.size,
+                totalChunks: totalChunks
+            },
+            sender: { ...user, id: myId }
+        };
+        dataChannel.send(JSON.stringify(metaMessage));
+        
+        // 2. Wysyłaj chunki
+        let offset = 0;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            dataChannel.send(e.target.result);
+            offset += e.target.result.byteLength;
+            if (offset < file.size) {
+                readSlice(offset);
+            }
+        };
+        const readSlice = o => {
+            const slice = file.slice(o, o + FILE_CHUNK_SIZE);
+            reader.readAsArrayBuffer(slice);
+        };
+        readSlice(0);
+    }
+
+    // --- Wysyłanie Wiadomości Tekstowych ---
+    chatInput.addEventListener('keypress', event => {
+        if (event.key === 'Enter' && chatInput.value.trim() !== '') {
+            sendMessage('text', chatInput.value);
+            chatInput.value = '';
+        }
+    });
 </script>
 </body>
 </html>
