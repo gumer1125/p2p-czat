@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P Czat przez Internet v2</title>
+    <!-- Importujemy bibliotekę MQTT.js z publicznego CDN -->
+    <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
+    <style>
+        :root {
+            --background-primary: #36393f;
+            --background-secondary: #2f3136;
+            --background-tertiary: #202225;
+            --text-normal: #dcddde;
+            --text-muted: #72767d;
+            --header-primary: #ffffff;
+            --green: #43b581;
+            --yellow: #faa61a;
+            --red: #f04747;
+            --blue: #5865F2;
+        }
+        body { font-family: 'Whitney', 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; background-color: var(--background-primary); color: var(--text-normal); display: flex; height: 100vh; overflow: hidden; }
+        .app-container { display: flex; width: 100%; }
+        .sidebar { width: 240px; background-color: var(--background-secondary); display: flex; flex-direction: column; padding: 10px; }
+        .sidebar h2 { color: var(--header-primary); font-size: 16px; padding: 0 10px; margin-bottom: 20px; }
+        .connection-panel { border: 1px solid var(--background-tertiary); border-radius: 8px; padding: 15px; background-color: var(--background-tertiary); }
+        .connection-panel h3 { margin-top: 0; font-size: 14px; color: var(--header-primary); }
+        #connection-status { padding: 5px 8px; border-radius: 5px; font-weight: bold; text-align: center; margin-bottom: 10px; }
+        #connection-status.disconnected { background-color: var(--red); }
+        #connection-status.connecting { background-color: var(--yellow); }
+        #connection-status.connected { background-color: var(--green); }
+        .connection-panel input { width: calc(100% - 20px); padding: 10px; margin-bottom: 10px; border-radius: 5px; border: 1px solid var(--background-primary); background-color: var(--background-secondary); color: var(--text-normal); text-align: center; }
+        .connection-panel button { width: 100%; padding: 10px; border: none; border-radius: 5px; color: white; font-weight: bold; cursor: pointer; margin-bottom: 10px; }
+        #create-room-btn { background-color: var(--green); }
+        #join-room-btn { background-color: var(--blue); }
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; background-color: var(--background-primary); }
+        .chat-messages { flex-grow: 1; padding: 20px; overflow-y: auto; }
+        .message { margin-bottom: 15px; display: flex; align-items: flex-start; }
+        .message .avatar { width: 40px; height: 40px; border-radius: 50%; background-color: var(--text-muted); margin-right: 15px; flex-shrink: 0; }
+        .message-content { display: flex; flex-direction: column; }
+        .message-header { font-size: 14px; font-weight: bold; margin-bottom: 4px; }
+        .message-header .sender-you { color: var(--green); }
+        .message-header .sender-peer { color: var(--yellow); }
+        .message-header .sender-system { color: var(--text-muted); font-style: italic; }
+        .chat-input-area { padding: 20px; background-color: var(--background-primary); border-top: 1px solid var(--background-secondary); }
+        #chat-input { width: 100%; padding: 12px; background-color: var(--background-secondary); border: none; border-radius: 8px; color: var(--text-normal); box-sizing: border-box; resize: none; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="sidebar">
+        <h2>P2P Czat</h2>
+        <div class="connection-panel">
+            <h3>Połączenie</h3>
+            <div id="connection-status" class="disconnected">Rozłączono</div>
+            <input type="text" id="room-code-input" placeholder="Wpisz kod pokoju...">
+            <button id="create-room-btn">Stwórz Pokój</button>
+            <button id="join-room-btn">Dołącz do Pokoju</button>
+        </div>
+    </div>
+    <div class="main-content">
+        <div class="chat-messages" id="chat-messages"></div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Napisz wiadomość..." disabled>
+        </div>
+    </div>
+</div>
+
+<script>
+    const roomCodeInput = document.getElementById('room-code-input');
+    const createRoomBtn = document.getElementById('create-room-btn');
+    const joinRoomBtn = document.getElementById('join-room-btn');
+    const chatInput = document.getElementById('chat-input');
+    const chatMessages = document.getElementById('chat-messages');
+    const connectionStatus = document.getElementById('connection-status');
+
+    let peerConnection;
+    let dataChannel;
+    let mqttClient;
+    let roomCode = '';
+    
+    const BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt';
+    const TOPIC_PREFIX = 'p2p-chat-app-bartosz-demo-321/'; // Użyjmy bardziej unikalnego prefiksu
+    let offerTopic = '';
+    let answerTopic = '';
+    
+    const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+    function updateStatus(status, text) { /* ... bez zmian ... */ }
+    function displayMessage(text, sender) { /* ... bez zmian ... */ }
+    // Te dwie funkcje są skopiowane bez zmian, żeby kod był krótszy
+    function updateStatus(status, text) { connectionStatus.className = status; connectionStatus.textContent = text; chatInput.disabled = (status !== 'connected'); }
+    function displayMessage(text, sender) { const messageDiv = document.createElement('div'); messageDiv.classList.add('message'); let senderClass, senderName, avatarHtml; if (sender === 'you') { senderClass = 'sender-you'; senderName = 'Ty'; avatarHtml = '<div class="avatar"></div>'; } else if (sender === 'peer') { senderClass = 'sender-peer'; senderName = 'Rozmówca'; avatarHtml = '<div class="avatar"></div>'; } else { senderClass = 'sender-system'; senderName = 'System'; avatarHtml = ''; } messageDiv.innerHTML = ` ${avatarHtml} <div class="message-content"> <div class="message-header"><span class="${senderClass}">${senderName}</span></div> <div>${text}</div> </div>`; chatMessages.appendChild(messageDiv); chatMessages.scrollTop = chatMessages.scrollHeight; }
+
+    function initializePeerConnection() {
+        if (peerConnection) peerConnection.close();
+        peerConnection = new RTCPeerConnection(configuration);
+        peerConnection.onconnectionstatechange = () => { if (peerConnection.connectionState === 'connected') { updateStatus('connected', 'Połączono'); displayMessage('Połączenie zostało nawiązane!', 'system'); if(mqttClient) mqttClient.end(); } else if (['disconnected', 'failed', 'closed'].includes(peerConnection.connectionState)) { updateStatus('disconnected', 'Rozłączono'); } };
+        peerConnection.ondatachannel = event => { dataChannel = event.channel; setupDataChannelEvents(); };
+    }
+    function setupDataChannelEvents() { dataChannel.onmessage = event => displayMessage(event.data, 'peer'); }
+
+    function connectSignaling() {
+        roomCode = roomCodeInput.value.trim();
+        if (!roomCode) { alert('Wpisz kod pokoju!'); return false; }
+        offerTopic = TOPIC_PREFIX + roomCode + '/offer';
+        answerTopic = TOPIC_PREFIX + roomCode + '/answer';
+        updateStatus('connecting', 'Łączenie z listonoszem...');
+        const clientId = 'p2p-client-' + Math.random().toString(16).substr(2, 8);
+        mqttClient = mqtt.connect(BROKER_URL, { clientId });
+        mqttClient.on('connect', () => { displayMessage('Połączono z serwerem sygnalizacyjnym. Gotowe.', 'system'); });
+        mqttClient.on('error', (err) => { alert('Błąd serwera sygnalizacyjnego.'); console.error(err); updateStatus('disconnected', 'Błąd połączenia'); });
+        mqttClient.on('message', (topic, message) => { const data = JSON.parse(message.toString()); if (topic === offerTopic && (!peerConnection || !peerConnection.currentRemoteDescription)) { displayMessage('Otrzymano ofertę. Tworzenie odpowiedzi...', 'system'); handleReceivedOffer(data); } else if (topic === answerTopic && peerConnection.signalingState === 'have-local-offer') { displayMessage('Otrzymano odpowiedź. Łączenie...', 'system'); handleReceivedAnswer(data); } });
+        return true;
+    }
+
+    createRoomBtn.addEventListener('click', async () => {
+        if (!connectSignaling()) return;
+        initializePeerConnection();
+        dataChannel = peerConnection.createDataChannel('chat');
+        setupDataChannelEvents();
+        mqttClient.subscribe(answerTopic);
+        peerConnection.onicecandidate = event => {
+            if (!event.candidate) {
+                const offer = peerConnection.localDescription;
+                // WAŻNA ZMIANA: Dodajemy flagę `retain`, żeby serwer przechował wiadomość!
+                mqttClient.publish(offerTopic, JSON.stringify(offer), { retain: true });
+                displayMessage('Pokój stworzony. Wysyłanie oferty... Czekam na odpowiedź.', 'system');
+            }
+        };
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        updateStatus('connecting', 'Czekanie na kolegę...');
+    });
+
+    joinRoomBtn.addEventListener('click', () => {
+        if (!connectSignaling()) return;
+        // Subskrybuj najpierw, potem inicjalizuj, żeby nie przegapić wiadomości
+        mqttClient.subscribe(offerTopic);
+        updateStatus('connecting', 'Dołączanie do pokoju...');
+        displayMessage('Nasłuchiwanie na ofertę od twórcy pokoju...', 'system');
+    });
+
+    async function handleReceivedOffer(offer) {
+        if (!peerConnection) initializePeerConnection();
+        peerConnection.onicecandidate = event => {
+            if (!event.candidate) {
+                const answer = peerConnection.localDescription;
+                // WAŻNA ZMIANA: Tu też dodajemy `retain` na wszelki wypadek.
+                mqttClient.publish(answerTopic, JSON.stringify(answer), { retain: true });
+                displayMessage('Wysyłanie odpowiedzi...', 'system');
+            }
+        };
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+    }
+
+    async function handleReceivedAnswer(answer) { await peerConnection.setRemoteDescription(new RTCSessionDescription(answer)); }
+    
+    chatInput.addEventListener('keypress', event => { if (event.key === 'Enter' && chatInput.value.trim() !== '' && dataChannel && dataChannel.readyState === 'open') { const message = chatInput.value; dataChannel.send(message); displayMessage(message, 'you'); chatInput.value = ''; } });
+</script>
+</body>
+</html>
