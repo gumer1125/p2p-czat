@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P Czat Final</title>
+    <title>P2P Czat Final v2</title>
     <script src="https://unpkg.com/mqtt/dist/mqtt.min.js"></script>
     <style>
         :root {
@@ -69,44 +69,67 @@
     </div>
 
 <script>
-    // --- UI Elements & App State ---
     const ui = { nicknameInput: document.getElementById('nickname-input'), saveSettingsBtn: document.getElementById('save-settings-btn'), roomCodeInput: document.getElementById('room-code-input'), createRoomBtn: document.getElementById('create-room-btn'), joinRoomBtn: document.getElementById('join-room-btn'), chatInput: document.getElementById('chat-input'), chatMessages: document.getElementById('chat-messages'), connectionStatus: document.getElementById('connection-status'), fileInput: document.getElementById('file-input'), fileBtn: document.getElementById('file-btn'), chatList: document.getElementById('chat-list'), chatHeader: document.getElementById('chat-header') };
     let peerConnection, dataChannel, mqttClient, db;
     let myId = 'client-' + Math.random().toString(36).substr(2, 9);
     let user = { nick: 'Anonim', color: '#7289da' };
     let activeRoomId = null;
-    let isInitiator = false;
-    const BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt', TOPIC_PREFIX = 'p2p-chat-app-stable-v7/', FILE_CHUNK_SIZE = 16384; // 16KB
+    const BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt', TOPIC_PREFIX = 'p2p-chat-app-stable-v8/', FILE_CHUNK_SIZE = 16384;
     const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
     
     // --- Database (IndexedDB) Logic ---
-    function initDB() { const request = indexedDB.open('P2PChatDB_v2', 1); request.onerror = (e) => console.error("DB Error:", e.target.errorCode); request.onsuccess = (e) => { db = e.target.result; loadChatList(); }; request.onupgradeneeded = (e) => { let db = e.target.result; if (!db.objectStoreNames.contains('rooms')) db.createObjectStore('rooms', { keyPath: 'id' }); if (!db.objectStoreNames.contains('messages')) { let messagesStore = db.createObjectStore('messages', { keyPath: 'id', autoIncrement: true }); messagesStore.createIndex('roomId', 'roomId', { unique: false }); }}; }
-    function saveRoom(room) { const tx = db.transaction('rooms', 'readwrite'); const store = tx.objectStore('rooms'); store.get(room.id).onsuccess = (e) => { const existing = e.target.result; if (!existing || (room.peer && !existing.peer)) { store.put({ ...existing, ...room }); tx.oncomplete = () => loadChatList(); } }; }
+    function initDB() { const request = indexedDB.open('P2PChatDB_v3', 1); request.onerror = (e) => console.error("DB Error:", e.target.errorCode); request.onsuccess = (e) => { db = e.target.result; loadChatList(); }; request.onupgradeneeded = (e) => { let db = e.target.result; if (!db.objectStoreNames.contains('rooms')) db.createObjectStore('rooms', { keyPath: 'id' }); if (!db.objectStoreNames.contains('messages')) { let messagesStore = db.createObjectStore('messages', { keyPath: 'id', autoIncrement: true }); messagesStore.createIndex('roomId', 'roomId', { unique: false }); }}; }
+    function saveRoom(room) { const tx = db.transaction('rooms', 'readwrite'); const store = tx.objectStore('rooms'); store.get(room.id).onsuccess = (e) => { const existing = e.target.result || {}; store.put({ ...existing, ...room }); tx.oncomplete = () => loadChatList(); }; }
     function saveMessage(msg) { const tx = db.transaction('messages', 'readwrite'); tx.objectStore('messages').add(msg); }
     function loadChatList() { ui.chatList.innerHTML = ''; const tx = db.transaction('rooms', 'readonly'); tx.objectStore('rooms').openCursor().onsuccess = (e) => { const cursor = e.target.result; if (cursor) { const room = cursor.value; const item = document.createElement('div'); item.className = 'chat-list-item'; item.textContent = room.peer ? room.peer.nick : room.id; item.dataset.roomId = room.id; item.onclick = () => selectChat(room.id); ui.chatList.appendChild(item); cursor.continue(); } }; }
-    async function selectChat(roomId) { resetConnection(); activeRoomId = roomId; ui.chatHeader.textContent = `Rozmowa z: ${document.querySelector(`[data-room-id="${roomId}"]`).textContent}`; ui.chatMessages.innerHTML = ''; document.querySelectorAll('.chat-list-item').forEach(el => el.classList.toggle('active', el.dataset.roomId === roomId)); const tx = db.transaction('messages', 'readonly'); const index = tx.objectStore('messages').index('roomId'); index.openCursor(IDBKeyRange.only(roomId)).onsuccess = (e) => { const cursor = e.target.result; if (cursor) { renderMessage(cursor.value, true); cursor.continue(); } }; ui.joinRoomBtn.click(); }
-
-    // --- User Settings ---
+    
+    // --- User Settings & UI ---
     document.addEventListener('DOMContentLoaded', () => { initDB(); loadUserSettings(); });
     function loadUserSettings() { const saved = localStorage.getItem('p2p-user'); if (saved) { user = JSON.parse(saved); ui.nicknameInput.value = user.nick; enableConnectionButtons(); } }
     ui.saveSettingsBtn.addEventListener('click', () => { const nick = ui.nicknameInput.value.trim(); if (nick) { user.nick = nick; user.color = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'); localStorage.setItem('p2p-user', JSON.stringify(user)); alert('Zapisano!'); enableConnectionButtons(); } });
     function enableConnectionButtons() { ui.createRoomBtn.disabled = false; ui.joinRoomBtn.disabled = false; document.getElementById('user-settings').style.borderColor = 'var(--green)'; }
+    function updateStatus(status, text) { ui.connectionStatus.className = status; ui.connectionStatus.textContent = text; const connected = status === 'connected'; ui.chatInput.disabled = !connected; ui.fileBtn.disabled = !connected; }
 
     // --- Message Rendering ---
-    function renderMessage(msgData, isFromHistory = false) { const { type, content, sender, timestamp } = msgData; const isYou = sender && sender.id === myId; const messageDiv = document.createElement('div'); messageDiv.classList.add('message'); if(!isFromHistory) messageDiv.style.animation = 'fadeIn 0.3s ease-out'; const avatar = document.createElement('div'); avatar.className = 'avatar'; if(sender){ avatar.style.backgroundColor = sender.color; avatar.textContent = sender.nick.charAt(0).toUpperCase(); } const contentDiv = document.createElement('div'); contentDiv.className = 'message-content'; const headerDiv = document.createElement('div'); headerDiv.className = 'message-header'; const nickSpan = document.createElement('span'); nickSpan.className = 'message-nick'; nickSpan.style.color = isYou ? 'var(--green)' : 'var(--yellow)'; const timeSpan = document.createElement('span'); timeSpan.className = 'message-timestamp'; timeSpan.textContent = timestamp; const bodyDiv = document.createElement('div'); bodyDiv.className = 'message-body'; if(type==='system'){ bodyDiv.textContent = content; bodyDiv.style.fontStyle = 'italic'; bodyDiv.style.color = 'var(--text-muted)'; contentDiv.appendChild(bodyDiv); } else { nickSpan.textContent = isYou ? 'Ty' : sender.nick; headerDiv.appendChild(nickSpan); headerDiv.appendChild(timeSpan); contentDiv.appendChild(headerDiv); if(type === 'text'){ const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig; bodyDiv.innerHTML = content.replace(urlRegex, url => `<a href="${url}" target="_blank">${url}</a>`); } else if(type === 'file-progress'){ bodyDiv.textContent = `Plik: ${content.fileName}`; const p = document.createElement('div'); p.className = 'progress-bar'; p.id = msgData.fileProgressId; const f = document.createElement('div'); f.className = 'progress-bar-fill'; p.appendChild(f); bodyDiv.appendChild(p); } else if(type === 'file'){ const fileData = isFromHistory ? content.data : atob(content.data); const len = fileData.length; const bytes = new Uint8Array(len); for (let i=0; i<len; i++) { bytes[i] = fileData.charCodeAt(i); } const blob = new Blob([bytes.buffer], {type: content.fileType}); const url = URL.createObjectURL(blob); if(content.fileType.startsWith('image/')) { const i=document.createElement('img'); i.src=url; i.onclick=()=>window.open(url,'_blank'); bodyDiv.appendChild(i); } else if (content.fileType.startsWith('video/')) { const v=document.createElement('video'); v.src=url; v.controls=true; bodyDiv.appendChild(v); } else { const a=document.createElement('a'); a.href=url; a.download=content.fileName; a.textContent=`Pobierz: ${content.fileName}`; bodyDiv.appendChild(a); } } contentDiv.appendChild(bodyDiv); messageDiv.appendChild(avatar); } messageDiv.appendChild(contentDiv); ui.chatMessages.appendChild(messageDiv); if(!isFromHistory) ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight; }
+    function renderMessage(msgData, isFromHistory = false) { /* ... skopiowane z poprzedniej wersji bez zmian, dla zwięzłości ... */ const { type, content, sender, timestamp } = msgData; const isYou = sender && sender.id === myId; const messageDiv = document.createElement('div'); messageDiv.classList.add('message'); if(!isFromHistory) messageDiv.style.animation = 'fadeIn 0.3s ease-out'; const avatar = document.createElement('div'); avatar.className = 'avatar'; if(sender){ avatar.style.backgroundColor = sender.color; avatar.textContent = sender.nick.charAt(0).toUpperCase(); } const contentDiv = document.createElement('div'); contentDiv.className = 'message-content'; const headerDiv = document.createElement('div'); headerDiv.className = 'message-header'; const nickSpan = document.createElement('span'); nickSpan.className = 'message-nick'; nickSpan.style.color = isYou ? 'var(--green)' : 'var(--yellow)'; const timeSpan = document.createElement('span'); timeSpan.className = 'message-timestamp'; timeSpan.textContent = timestamp; const bodyDiv = document.createElement('div'); bodyDiv.className = 'message-body'; if(type==='system'){ bodyDiv.textContent = content; bodyDiv.style.fontStyle = 'italic'; bodyDiv.style.color = 'var(--text-muted)'; contentDiv.appendChild(bodyDiv); } else { nickSpan.textContent = isYou ? 'Ty' : sender.nick; headerDiv.appendChild(nickSpan); headerDiv.appendChild(timeSpan); contentDiv.appendChild(headerDiv); if(type === 'text'){ const urlRegex = /(\b(https?|ftp|file):\/\/[-A-Z0-9+&@#\/%?=~_|!:,.;]*[-A-Z0-9+&@#\/%=~_|])/ig; bodyDiv.innerHTML = content.replace(urlRegex, url => `<a href="${url}" target="_blank">${url}</a>`); } else if(type === 'file-progress'){ bodyDiv.textContent = `Plik: ${content.fileName}`; const p = document.createElement('div'); p.className = 'progress-bar'; p.id = msgData.fileProgressId; const f = document.createElement('div'); f.className = 'progress-bar-fill'; p.appendChild(f); bodyDiv.appendChild(p); } else if(type === 'file'){ const fileData = isFromHistory ? content.data : atob(content.data); const len = fileData.length; const bytes = new Uint8Array(len); for (let i=0; i<len; i++) { bytes[i] = fileData.charCodeAt(i); } const blob = new Blob([bytes.buffer], {type: content.fileType}); const url = URL.createObjectURL(blob); if(content.fileType.startsWith('image/')) { const i=document.createElement('img'); i.src=url; i.onclick=()=>window.open(url,'_blank'); bodyDiv.appendChild(i); } else if (content.fileType.startsWith('video/')) { const v=document.createElement('video'); v.src=url; v.controls=true; bodyDiv.appendChild(v); } else { const a=document.createElement('a'); a.href=url; a.download=content.fileName; a.textContent=`Pobierz: ${content.fileName}`; bodyDiv.appendChild(a); } } contentDiv.appendChild(bodyDiv); messageDiv.appendChild(avatar); } messageDiv.appendChild(contentDiv); ui.chatMessages.appendChild(messageDiv); if(!isFromHistory) ui.chatMessages.scrollTop = ui.chatMessages.scrollHeight; }
 
-    // --- Core Connection Logic (WebRTC + MQTT) ---
-    function resetConnection() { if (dataChannel) dataChannel.close(); if (peerConnection) peerConnection.close(); if (mqttClient) mqttClient.end(); peerConnection = null; dataChannel = null; isInitiator = false; updateStatus('disconnected', 'Rozłączono'); }
-    function updateStatus(status, text) { ui.connectionStatus.className = status; ui.connectionStatus.textContent = text; const connected = status === 'connected'; ui.chatInput.disabled = !connected; ui.fileBtn.disabled = !connected; }
-    function getTopics(roomId) { return { offerTopic: TOPIC_PREFIX + roomId + '/offer', answerTopic: TOPIC_PREFIX + roomId + '/answer' }; }
+    // --- Core Connection Logic ---
+    function resetConnection() { if (dataChannel) dataChannel.close(); if (peerConnection) peerConnection.close(); if (mqttClient) mqttClient.end(); peerConnection = null; dataChannel = null; updateStatus('disconnected', 'Rozłączono'); }
+    function getTopics(roomId) { return { offerTopic: TOPIC_PREFIX + roomId + '/offer', answerTopic: TOPIC_PREFIX + roomId + '/answer', handshakeTopic: TOPIC_PREFIX + roomId + '/handshake' }; }
     
-    async function startConnection(startAsInitiator, roomId) {
-        if (!roomId) { alert('Wpisz kod pokoju!'); return; }
+    // NEW: Function to handle reconnections
+    async function selectChat(roomId) {
         resetConnection();
-        isInitiator = startAsInitiator;
         activeRoomId = roomId;
-        saveRoom({ id: roomId });
-        ui.chatHeader.textContent = `Łączenie z: ${roomId}...`;
+        const roomName = document.querySelector(`[data-room-id="${roomId}"]`).textContent;
+        ui.chatHeader.textContent = `Łączenie z: ${roomName}...`;
+        ui.chatMessages.innerHTML = '';
+        document.querySelectorAll('.chat-list-item').forEach(el => el.classList.toggle('active', el.dataset.roomId === roomId));
+        const tx = db.transaction('messages', 'readonly'); tx.objectStore('messages').index('roomId').openCursor(IDBKeyRange.only(roomId)).onsuccess = (e) => { const cursor = e.target.result; if (cursor) { renderMessage(cursor.value, true); cursor.continue(); } };
+
+        updateStatus('connecting', 'Handshake...');
+        const { handshakeTopic } = getTopics(roomId);
+        mqttClient = mqtt.connect(BROKER_URL, { clientId: myId + '-handshake' });
+        mqttClient.on('connect', () => {
+            mqttClient.subscribe(handshakeTopic);
+            mqttClient.publish(handshakeTopic, JSON.stringify({ type: 'ping', senderId: myId }));
+        });
+        mqttClient.on('message', (topic, message) => {
+            if (topic === handshakeTopic) {
+                const data = JSON.parse(message.toString());
+                if (data.type === 'ping' && data.senderId !== myId) {
+                    const isInitiator = myId < data.senderId;
+                    mqttClient.end();
+                    startP2PConnection(isInitiator, roomId);
+                }
+            }
+        });
+    }
+
+    // REFACTORED: Central P2P setup function
+    async function startP2PConnection(isInitiator, roomId) {
+        resetConnection();
+        activeRoomId = roomId;
         peerConnection = new RTCPeerConnection(configuration);
         if (isInitiator) { dataChannel = peerConnection.createDataChannel('chat'); setupDataChannelEvents(); } 
         else { peerConnection.ondatachannel = event => { dataChannel = event.channel; setupDataChannelEvents(); }; }
@@ -114,12 +137,20 @@
         const { offerTopic, answerTopic } = getTopics(roomId);
         updateStatus('connecting', 'Sygnalizacja...');
         mqttClient = mqtt.connect(BROKER_URL, { clientId: myId });
-        mqttClient.on('connect', () => { isInitiator ? mqttClient.subscribe(answerTopic) : mqttClient.subscribe(offerTopic); if (isInitiator) createOffer(); });
-        mqttClient.on('message', (topic, message) => { const data = JSON.parse(message.toString()); if (data.senderId === myId) return; if (topic === offerTopic) handleReceivedOffer(data.payload); else if (topic === answerTopic) handleReceivedAnswer(data.payload); });
+        mqttClient.on('connect', () => {
+            isInitiator ? mqttClient.subscribe(answerTopic) : mqttClient.subscribe(offerTopic);
+            if (isInitiator) createOffer();
+        });
+        mqttClient.on('message', (topic, message) => {
+            const data = JSON.parse(message.toString());
+            if (data.senderId === myId) return;
+            if (topic === offerTopic) handleReceivedOffer(data.payload);
+            else if (topic === answerTopic) handleReceivedAnswer(data.payload);
+        });
     }
 
-    ui.createRoomBtn.addEventListener('click', () => startConnection(true, ui.roomCodeInput.value));
-    ui.joinRoomBtn.addEventListener('click', () => startConnection(false, activeRoomId || ui.roomCodeInput.value));
+    ui.createRoomBtn.addEventListener('click', () => startP2PConnection(true, ui.roomCodeInput.value));
+    ui.joinRoomBtn.addEventListener('click', () => startP2PConnection(false, ui.roomCodeInput.value));
     
     async function createOffer() { const offer = await peerConnection.createOffer(); await peerConnection.setLocalDescription(offer); peerConnection.onicegatheringstatechange = () => { if (peerConnection.iceGatheringState === 'complete') { mqttClient.publish(getTopics(activeRoomId).offerTopic, JSON.stringify({ senderId: myId, payload: peerConnection.localDescription }), { retain: true }); } }; }
     async function handleReceivedOffer(offer) { await peerConnection.setRemoteDescription(new RTCSessionDescription(offer)); const answer = await peerConnection.createAnswer(); await peerConnection.setLocalDescription(answer); peerConnection.onicegatheringstatechange = () => { if (peerConnection.iceGatheringState === 'complete') { mqttClient.publish(getTopics(activeRoomId).answerTopic, JSON.stringify({ senderId: myId, payload: peerConnection.localDescription }), { retain: true }); } }; }
@@ -127,12 +158,12 @@
 
     // --- Data Channel & File Transfer Logic ---
     function setupDataChannelEvents() {
-        dataChannel.onopen = () => { updateStatus('connected', 'Połączono'); if (isInitiator) sendMessage('user-profile', user); };
+        dataChannel.onopen = () => { updateStatus('connected', 'Połączono'); sendMessage('user-profile', user); };
         dataChannel.onclose = () => resetConnection();
         let receivedFileChunks = {}, receivedFileData = {};
         dataChannel.onmessage = event => {
             const message = JSON.parse(event.data);
-            if (message.type === 'user-profile') { saveRoom({ id: activeRoomId, peer: message.content }); if (!isInitiator) sendMessage('user-profile', user); return; }
+            if (message.type === 'user-profile') { saveRoom({ id: activeRoomId, peer: message.content }); return; }
             if (message.type === 'file-chunk') { if (!receivedFileChunks[message.fileId]) receivedFileChunks[message.fileId] = []; receivedFileChunks[message.fileId][message.index] = message.chunk; const progress = (receivedFileChunks[message.fileId].filter(Boolean).length / receivedFileData[message.fileId].totalChunks) * 100; const fill = document.querySelector(`#${message.fileId} .progress-bar-fill`); if(fill) fill.style.width = `${progress}%`; if (receivedFileChunks[message.fileId].filter(Boolean).length === receivedFileData[message.fileId].totalChunks) { const base64Data = receivedFileChunks[message.fileId].join(''); const finalMsg = { type: 'file', content: { data: base64Data, fileType: receivedFileData[message.fileId].fileType, fileName: receivedFileData[message.fileId].fileName }, sender: receivedFileData[message.fileId].sender, timestamp: message.timestamp }; renderMessage(finalMsg); saveMessage({ ...finalMsg, roomId: activeRoomId }); delete receivedFileChunks[message.fileId]; delete receivedFileData[message.fileId]; }
             } else if (message.type === 'file-meta') { receivedFileData[message.fileProgressId] = { ...message.content, sender: message.sender }; renderMessage(message);
             } else { renderMessage(message); saveMessage({ ...message, roomId: activeRoomId }); }
@@ -151,13 +182,14 @@
         const reader = new FileReader();
         reader.onload = (e) => {
             const base64 = e.target.result.split(',')[1];
-            const chunks = base64.match(new RegExp('.{1,' + FILE_CHUNK_SIZE + '}', 'g'));
-            const metaMessage = { type: 'file-progress', content: { fileName: file.name }, sender: { ...user, id: myId }, timestamp: new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' }), fileProgressId: fileId };
+            const chunks = base64.match(new RegExp('.{1,' + FILE_CHUNK_SIZE + '}', 'g')) || [];
+            const timestamp = new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' });
+            const metaMessage = { type: 'file-progress', content: { fileName: file.name }, sender: { ...user, id: myId }, timestamp: timestamp, fileProgressId: fileId };
             renderMessage(metaMessage);
-            const metaForPeer = { type: 'file-meta', content: { fileName: file.name, fileType: file.type, totalChunks: chunks.length }, sender: { ...user, id: myId }, timestamp: new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' }), fileProgressId: fileId };
+            const metaForPeer = { type: 'file-meta', content: { fileName: file.name, fileType: file.type, totalChunks: chunks.length }, sender: { ...user, id: myId }, timestamp: timestamp, fileProgressId: fileId };
             dataChannel.send(JSON.stringify(metaForPeer));
             chunks.forEach((chunk, index) => {
-                dataChannel.send(JSON.stringify({ type: 'file-chunk', chunk, index, fileId, timestamp: new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' }) }));
+                dataChannel.send(JSON.stringify({ type: 'file-chunk', chunk, index, fileId, timestamp: timestamp }));
             });
         };
         reader.readAsDataURL(file);
